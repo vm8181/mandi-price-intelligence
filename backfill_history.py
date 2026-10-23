@@ -35,7 +35,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from mandi_pipeline.api import SAMPLE_KEY, ApiFailed, ApiKeyRefused, DataGovClient, say
-from mandi_pipeline.download import download_day
+from mandi_pipeline.download import already_complete, download_day
 
 OUT_DIR = Path("data/raw/mandi_v2")
 MANIFEST = OUT_DIR / "_manifest.csv"
@@ -183,6 +183,17 @@ def main() -> None:
                 total_rows += n
                 say(f"{label}: {n:,} rows")
                 continue
+            # Check first: if the files on disk already hold everything the API has for
+            # this day, nothing is missing, so don't download it again.
+            complete, on_disk, api_total = already_complete(client, d, c, folder(d, c))
+            if complete:
+                recent = d > date.today() - timedelta(days=LATE_WINDOW_DAYS)
+                marker = "_REFRESHED" if recent else "_DONE"
+                (folder(d, c) / marker).write_text(datetime.now().isoformat(), encoding="utf-8")
+                say(f"{label}: already complete on disk ({on_disk:,} rows, same as the API), skipped")
+                continue
+            if api_total is not None:
+                say(f"{label}: {on_disk:,} rows on disk, the API now has {api_total:,}: downloading again")
             r = download_day(client, d, c, folder(d, c), limit=args.limit, workers=args.workers)
         except ApiKeyRefused as err:
             sys.exit(str(err))                   # fail fast: nothing else can succeed

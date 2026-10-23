@@ -11,7 +11,7 @@ from datetime import date
 import pytest
 
 from mandi_pipeline.api import ApiFailed
-from mandi_pipeline.download import download_day
+from mandi_pipeline.download import already_complete, download_day
 
 
 class FakeClient:
@@ -106,6 +106,39 @@ def test_saved_files_are_exactly_what_the_api_sent(tmp_path):
     assert saved == {"status": "ok", "total": 2,
                      "records": [{"State": "Goa", "Market": "M0", "Modal_Price": 1000},
                                  {"State": "Goa", "Market": "M1", "Modal_Price": 1001}]}
+
+
+def test_check_first_skips_a_day_already_complete(tmp_path):
+    """Restart after a stop: a day fully on disk is verified with one small request,
+    not downloaded again."""
+    c = FakeClient({"Tamil Nadu": 30, "Goa": 5})
+    download_day(c, DAY, "ALL", tmp_path)
+    c.asked.clear()
+    complete, on_disk, api_total = already_complete(c, DAY, "ALL", tmp_path)
+    assert complete and on_disk == api_total == 35
+    assert c.asked == ["DAY"]                            # one total request, no state downloads
+
+
+def test_check_first_finds_late_uploads(tmp_path):
+    download_day(FakeClient({"Tamil Nadu": 30}), DAY, "ALL", tmp_path)
+    later = FakeClient({"Tamil Nadu": 32})               # 2 rows uploaded late
+    complete, on_disk, api_total = already_complete(later, DAY, "ALL", tmp_path)
+    assert not complete and (on_disk, api_total) == (30, 32)
+
+
+def test_check_first_finds_a_partly_written_day(tmp_path):
+    """A run stopped mid-write can leave a truncated file: that day must be redone."""
+    download_day(FakeClient({"Tamil Nadu": 30}), DAY, "ALL", tmp_path)
+    f = tmp_path / "state_Tamil_Nadu.json.gz"
+    f.write_bytes(f.read_bytes()[:40])                   # cut the file short
+    complete, _, _ = already_complete(FakeClient({"Tamil Nadu": 30}), DAY, "ALL", tmp_path)
+    assert not complete
+
+
+def test_check_first_with_nothing_on_disk(tmp_path):
+    c = FakeClient({"Tamil Nadu": 30})
+    complete, on_disk, api_total = already_complete(c, DAY, "ALL", tmp_path)
+    assert not complete and api_total is None and c.asked == []   # no request wasted
 
 
 def test_day_with_no_rows(tmp_path):

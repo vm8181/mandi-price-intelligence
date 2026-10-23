@@ -93,16 +93,54 @@ def _ask_states(client: DataGovClient, base: dict, states: list, label: str,
         return dict(pool.map(one, states))      # re-raises the first failure, if any
 
 
+def _base(day: date, commodity: str) -> dict:
+    base = {"format": "json", "filters[Arrival_Date]": day.strftime("%d-%m-%Y")}   # dd-mm-yyyy for the filter
+    if commodity != "ALL":
+        base["filters[Commodity]"] = commodity
+    return base
+
+
+def rows_on_disk(folder: Path):
+    """Count the rows already saved for a day, and any exact duplicates.
+    Returns (rows, duplicates), or None if there are no files or a file is unreadable
+    (for example cut short when a run was stopped mid-write)."""
+    files = sorted(folder.glob("state_*.json.gz"))
+    if not files:
+        return None
+    records = []
+    try:
+        for f in files:
+            with gzip.open(f, "rt", encoding="utf-8") as fh:
+                records.extend(json.load(fh).get("records", []))
+    except (OSError, EOFError, ValueError):
+        return None
+    duplicates = sum(n - 1 for n in Counter(map(canonical, records)).values() if n > 1)
+    return len(records), duplicates
+
+
+def already_complete(client: DataGovClient, day: date, commodity: str, folder: Path):
+    """Check before downloading: do the files on disk already hold everything the API
+    has for this day? One small request (the day's current total) against a local count.
+
+    Returns (complete, rows_on_disk, api_total). Not complete if there are no files, a
+    file is unreadable, rows are duplicated, or the API now has more (or fewer) rows,
+    e.g. late uploads since the last download."""
+    saved = rows_on_disk(folder)
+    if saved is None:
+        return False, 0, None
+    rows, duplicates = saved
+    label = f"{day:%d-%m-%Y} {commodity} check"
+    api_total = int(client.get({**_base(day, commodity), "limit": 1, "offset": 0}, label).get("total") or 0)
+    return rows == api_total and duplicates == 0, rows, api_total
+
+
 def download_day(client: DataGovClient, day: date, commodity: str, folder: Path,
                  limit: int = 50000, workers: int = 4) -> DayResult:
     """Download one day (optionally one commodity), save each state's answer as
     received, and report whether the day is provably complete."""
     result = DayResult(day=day, commodity=commodity)
-    day_api = day.strftime("%d-%m-%Y")                  # the date format the filter expects
-    base = {"format": "json", "filters[Arrival_Date]": day_api}
-    if commodity != "ALL":
-        base["filters[Commodity]"] = commodity
-    label = f"{day_api} {commodity}"
+    base = _base(day, commodity)
+    label = f"{day:%d-%m-%Y} {commodity}"
 
     # 1. The day's own total: what the states must add up to.
     result.day_total = int(client.get({**base, "limit": 1, "offset": 0}, f"{label} day total")
