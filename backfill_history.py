@@ -48,6 +48,30 @@ STAPLES = ["Onion", "Tomato", "Potato", "Wheat", "Paddy(Common)"]
 # finished. See docs/decisions.md.
 LATE_WINDOW_DAYS = 30
 
+# A recent day refreshed less than this many hours ago is skipped, so restarting a run
+# doesn't re-download the last 30 days every time. Once a day is enough for late uploads.
+REFRESH_HOURS = 20
+
+
+def needs_download(folder: Path, day: date, now: datetime) -> bool:
+    """Decide whether a day must be (re)downloaded.
+
+    - Finished days (_DONE) never are.
+    - Recent days are refreshed for late uploads, but at most once every REFRESH_HOURS:
+      _REFRESHED records the last complete pull.
+    - Anything else (never downloaded, failed, incomplete) always is."""
+    if (folder / "_DONE").exists():
+        return False
+    refreshed = folder / "_REFRESHED"
+    if refreshed.exists():
+        try:
+            last = datetime.fromisoformat(refreshed.read_text(encoding="utf-8").strip())
+        except ValueError:
+            return True                          # unreadable marker: refresh to be safe
+        if now - last < timedelta(hours=REFRESH_HOURS):
+            return False
+    return True
+
 
 def acquire_lock(path: Path):
     """Only one download at a time. The OS releases the lock if this process ends,
@@ -140,10 +164,12 @@ def main() -> None:
     def folder(d, c):
         return OUT_DIR / f"arrival_date={d.isoformat()}" / f"commodity={c}"
 
+    now = datetime.now()
     todo = [(d, c) for d in days for c in commodities
-            if args.count_only or not (folder(d, c) / "_DONE").exists()]
+            if args.count_only or needs_download(folder(d, c), d, now)]
     print(f"Range: {start:%d %b %Y} to {end:%d %b %Y} | {len(days) * len(commodities):,} day(s), "
-          f"{len(todo):,} to do, {len(days) * len(commodities) - len(todo):,} already finished\n")
+          f"{len(todo):,} to do, {len(days) * len(commodities) - len(todo):,} finished or refreshed "
+          f"in the last {REFRESH_HOURS} h\n")
 
     started, failures, total_rows = time.time(), [], 0
     for i, (d, c) in enumerate(todo, 1):
@@ -173,6 +199,8 @@ def main() -> None:
             status = f"INCOMPLETE ({r.problem})"
         elif recent:
             status = "complete, re-pulled while recent"
+            # Remember when, so a restart within REFRESH_HOURS skips it.
+            (folder(d, c) / "_REFRESHED").write_text(datetime.now().isoformat(), encoding="utf-8")
         else:
             status = "complete"
             (folder(d, c) / "_DONE").write_text(datetime.now().isoformat(), encoding="utf-8")

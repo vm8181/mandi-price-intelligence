@@ -123,8 +123,10 @@ class DataGovClient:
                 if resp.status_code == 200:
                     body = resp.json()
                     if body.get("status") in (None, "ok"):
-                        rows = len(body.get("records", []))
-                        say(f"    {label}: {rows:,} rows in {took:.1f}s")
+                        if int(params.get("limit", 0)) == 1:     # a total-only request
+                            say(f"    {label}: {int(body.get('total') or 0):,} rows in total ({took:.1f}s)")
+                        else:
+                            say(f"    {label}: {len(body.get('records', [])):,} rows in {took:.1f}s")
                         return body
                     raise RuntimeError(f"API status={body.get('status')} message={body.get('message')}")
                 if resp.status_code in (401, 403):
