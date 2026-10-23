@@ -1,0 +1,5 @@
+# Python packages this project needs. Install with:  python -m pip install -r requirements.txt
+requests>=2.31        # calls to the data.gov.in API
+databricks-sdk>=0.20  # uploads to the Databricks volume
+pandas>=2.0           # tools/pull_mandi_sample.py (one-off exploration)
+pytest>=8.0           # automated tests in tests/

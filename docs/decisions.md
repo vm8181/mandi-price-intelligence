@@ -4,6 +4,51 @@ Each entry records a choice, the options considered, and why. Newest first.
 
 ---
 
+## 006. A day is "complete" only when two independent checks pass
+
+**Date:** 23 Oct 2026
+**Decision:** A day is marked finished (`_DONE`) only if (1) the states' rows add up
+exactly to the day's own total, and (2) no row appears twice. Days within 30 days of
+today are re-pulled every run regardless, to catch late uploads.
+
+**Why:** Each check alone was fooled once. The paged download matched the total while
+missing rows (caught only by duplicates). The state download had no duplicates while
+two states answered empty (caught only by the total). Missing data now has to beat
+both. See `incidents/2026-10-23-pagination-overlap.md`.
+
+**Why 30 days:** Tamil Nadu's 1 Oct 2026 grew from 8,455 to 8,676 rows (+2.6%) in the
+22 days after the date. 7 days would have frozen it too early. Cost: about 30 recent
+days re-pulled each night.
+
+**Trade-off:** the uploader sends only finished days, so Databricks lags by 30 days
+until recent days are also uploaded as provisional (planned with the silver layer).
+
+---
+
+## 005. Download each day one state per request, not in pages
+
+**Date:** 23 Oct 2026
+**Decision:** Replace offset paging (5,000 rows per page) with one request per state
+(limit 50,000), up to 4 states at a time. Saved to `data/raw/mandi_v2`.
+
+**Why:** Paging swapped real rows for duplicates on 94 of 228 days (incident
+2026-10-23). The API's order isn't stable, so page boundaries can't be trusted.
+
+**Options considered:**
+- One request per day (limit 50,000): no paging, but a whole day is about 12 MB and
+  the connection was cut after about 60 s (tested on 1 Apr).
+- Bulk download from the website: requires a state **and** district per download
+  (about 700 districts), so not practical for 10 years.
+- Paging plus a duplicate check, re-downloading flagged days by state: works, but two
+  methods to maintain, and about 41% of days would need the second one anyway.
+- State by state (chosen): one method, no page boundaries, small answers.
+
+**Cost:** about 33 requests per day instead of 5. Measured at 153 s per day one state
+at a time; parallel requests are expected to bring this to about 40 to 50 s (to be
+measured).
+
+---
+
 ## 004. Load in two modes: one-time backfill, then a rolling 7-day daily update
 
 **Date:** 22 Oct 2026

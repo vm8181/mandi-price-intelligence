@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path("data/raw/mandi_v2")   # version 2: downloaded state by state
 YEARS = 10                 # same window as the nightly run
-LATE_WINDOW_DAYS = 7       # recent days stay open for late uploads (same as backfill_history.py)
+LATE_WINDOW_DAYS = 30      # recent days stay open for late uploads (same as backfill_history.py)
 
 
 def lock_is_held(path: Path) -> bool:
@@ -96,7 +96,7 @@ def main() -> None:
             for row in csv.DictReader(fh):
                 last[row["arrival_date"]] = row
         failed = sorted(d for d, r in last.items()
-                        if r["status"] in ("FAILED", "INCOMPLETE") and not (ROOT / f"arrival_date={d}").joinpath("commodity=ALL", "_DONE").exists())
+                        if r["status"].startswith(("FAILED", "INCOMPLETE")) and not (ROOT / f"arrival_date={d}").joinpath("commodity=ALL", "_DONE").exists())
         if failed:
             print(f"Failed on the last attempt (retried automatically next run): {len(failed)}  e.g. {', '.join(failed[:5])}")
         else:
