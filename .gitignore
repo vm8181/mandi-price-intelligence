@@ -1,0 +1,25 @@
+# Files Git must never track in this project.
+
+# Data: large, re-downloadable, and not code. The pipeline recreates it.
+data/
+mandi_sample_*.csv
+
+# Run logs: local diagnostics, kept for 30 days by daily_run.ps1
+logs/
+
+# Lock files created while a download or upload is running
+*.lock
+
+# Secrets. None should ever be in this folder, but guard against accidents:
+# the Databricks CLI config, environment files, any key files.
+.databrickscfg
+.env
+*.env
+*_key.txt
+*token*.txt
+
+# Python and editor clutter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.vscode/
