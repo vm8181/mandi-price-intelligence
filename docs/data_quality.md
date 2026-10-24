@@ -58,10 +58,22 @@ size of the difference is visible.
 **Why not convert per-bunch or per-piece prices to per quintal?** The weight of a bunch
 or a coconut isn't known and varies by market; converting would invent numbers.
 
-<!-- TODO: after the next silver run, record the new counts for both flags here -->
-<!-- TODO: crops where most markets use another unit (e.g. poultry per bird) may need a
-     reference table of expected units per commodity -->
-<!-- TODO: Patti APMC: inspect the actual values; consider quarantining the market -->
+**Result on the same 31 days:** outliers fell from 2,361 to **45**; **2,219** rows are
+unit-suspect. The suspect series show the expected values: Pune spinach Rs 4 to 9 and
+coriander Rs 3 to 6 (per bunch), Mapusa coconut Rs 40 and pineapple Rs 22, Diglipur lemon
+Rs 5 (per piece). The remaining outliers are genuine slips inside otherwise normal series,
+e.g. Mandya coconut entered per nut on 5 of 21 days, Akbarpur wood on 11 of 31 days.
+
+**Prices under Rs 1 are quarantined.** Patti APMC (Punjab) reported tomato at Rs 0.08,
+potato Rs 0.05 and onion Rs 0.14 per quintal, every day. Unlike a per-bunch price, no unit
+makes 5 paise a real price, so these rows can't be used even for the market's own trend.
+The rule is general (any market, any day), not a hard-coded market name.
+
+**Known limit: the majority can use another unit.** For Gazipur "Cock" (Rs 9,500 per
+quintal, realistic) and Gudimalkapur Astera (Rs 12,000, level ratio 800), most other
+markets report per bird or per bunch, so the market that is right gets flagged.
+<!-- TODO: a reference table of expected units per commodity (poultry, flowers) -->
+<!-- TODO: record the quarantine count for the Rs 1 rule after the next run -->
 
 Flagged rows stay in silver (nothing is lost).
 

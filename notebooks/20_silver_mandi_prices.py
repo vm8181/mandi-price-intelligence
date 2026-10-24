@@ -9,7 +9,7 @@
 # MAGIC | --- | --- | --- |
 # MAGIC | Types | Dates parsed as day/month/year; prices as decimals | Bronze keeps text; `01/10/2026` is ambiguous unless the format is stated |
 # MAGIC | Standard names | One name per state, via a reference table | The source uses "Kerala" and "Keralam", "Pondicherry", "Chattisgarh" |
-# MAGIC | Quality rules | Rows breaking a rule go to quarantine, with the reason | Bad rows are kept and visible, never silently dropped |
+# MAGIC | Quality rules | Rows breaking a rule go to quarantine, with the reason | Bad rows are kept and visible, never silently dropped. Includes prices under Rs 1, which are not real in any unit |
 # MAGIC | Unit flag | A market's whole monthly series for a crop more than 10x off the typical market | Some markets fill "Rs per quintal" per piece, bunch or kg (Pune leafy vegetables per bunch, Mapusa coconut per nut). Fine for that market's own trend, not for comparing markets |
 # MAGIC | Outlier flag | One price more than 10x off its own market's usual price that month | A one-off entry error; kept, but flagged so gold leaves it out |
 # MAGIC | Copies after cleaning | Rows identical once spaces are trimmed are kept once | Some Maharashtra and Telangana markets are published twice, as "APMC Kolhapur" and "APMC Kolhapur " (see data_quality.md) |
@@ -123,6 +123,9 @@ SELECT t.*,
               OR t.modal_price IS NULL                         THEN 'price missing or not a number' END,
     CASE WHEN t.min_price <= 0 OR t.max_price <= 0
               OR t.modal_price <= 0                            THEN 'price zero or negative' END,
+    -- Under Rs 1 is not a real price in any unit (per quintal, kg, piece or bunch),
+    -- e.g. Patti APMC tomato at Rs 0.08. Per-bunch prices like Rs 8 still pass.
+    CASE WHEN t.modal_price > 0 AND t.modal_price < 1          THEN 'price under Rs 1: not plausible in any unit' END,
     CASE WHEN t.min_price > t.modal_price
               OR t.modal_price > t.max_price                   THEN 'min <= modal <= max broken' END,
     CASE WHEN t.state IS NULL OR t.market IS NULL OR t.market = ''
