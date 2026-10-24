@@ -4,6 +4,46 @@ Each entry records a choice, the options considered, and why. Newest first.
 
 ---
 
+## 008. Gold is a star schema; national prices are medians of market prices
+
+**Date:** 24 Oct 2026
+**Decision:** Gold has dimensions (market, crop, date), one fact table at day x market x
+crop x variety x grade, and weekly and monthly aggregates by crop and state plus
+"All India". Keys are `xxhash64` hashes of the names.
+
+**Why:**
+- **Star schema:** the shape Power BI is built for: small dimensions filter one large
+  fact table, and names are stored once.
+- **Variety and grade in the fact grain:** Onion Red and White, or FAQ and Local grade,
+  sell at very different prices; averaging them in the base table invents a price.
+- **Median for state and national prices:** one market in the wrong unit or with bad
+  data barely moves a median, but moves an average a lot.
+- **Hash keys:** the same key on every full rebuild. Row-number keys would shift when a
+  new market appears and silently break report relationships.
+- **Equal weight per market-day:** the dataset has no arrival quantities, so a
+  volume-weighted price isn't possible. Stated openly in the reports.
+
+**Options considered:** one wide table (simple, but slow and repetitive in Power BI);
+average instead of median (distorted by single markets); surrogate row numbers
+(unstable on rebuild).
+
+---
+
+## 007. Two price flags: unit-suspect series and one-off outliers
+
+**Date:** 24 Oct 2026
+**Decision:** Silver flags a whole market-crop-month series as `is_unit_suspect` when it
+is more than 10x off the typical market, and a single report as `is_price_outlier` when
+it is more than 10x off its own market's month. Prices under Rs 1 are quarantined.
+
+**Why:** the first rule (10x off the national median) flagged 2,361 rows; measuring
+showed 94% were in well-covered crops and repeated every day at the same markets: those
+markets price per piece, bunch or kg. Unit-suspect series are still valid for their own
+market's trend, so they are kept but left out of comparisons across markets. Details and
+counts in `data_quality.md`.
+
+---
+
 ## 006. A day is "complete" only when two independent checks pass
 
 **Date:** 23 Oct 2026
