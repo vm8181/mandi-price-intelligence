@@ -7,6 +7,7 @@
 # MAGIC
 # MAGIC | Step | What | Why |
 # MAGIC | --- | --- | --- |
+# MAGIC | Final or provisional | Each day comes from its final data if it exists, otherwise from its latest **complete** provisional version | Recent days still receive late reports; they are shown, marked `data_status = 'provisional'` |
 # MAGIC | Types | Dates parsed as day/month/year; prices as decimals | Bronze keeps text; `01/10/2026` is ambiguous unless the format is stated |
 # MAGIC | Standard names | One name per state, via a reference table | The source uses "Kerala" and "Keralam", "Pondicherry", "Chattisgarh" |
 # MAGIC | Quality rules | Rows breaking a rule go to quarantine, with the reason | Bad rows are kept and visible, never silently dropped. Includes prices under Rs 1, which are not real in any unit |
@@ -14,7 +15,7 @@
 # MAGIC | Outlier flag | One price more than 10x off its own market's usual price that month | A one-off entry error; kept, but flagged so gold leaves it out |
 # MAGIC | Copies after cleaning | Rows identical once spaces are trimmed are kept once | Some Maharashtra and Telangana markets are published twice, as "APMC Kolhapur" and "APMC Kolhapur " (see data_quality.md) |
 # MAGIC | Grain | One row per price **report** | Some markets genuinely report several prices a day; gold summarises per market-day |
-# MAGIC | Reconciliation | bronze = silver + quarantine + copies removed | Every bronze row is accounted for |
+# MAGIC | Reconciliation | rows used from bronze = silver + quarantine + copies removed | Every row used is accounted for |
 # MAGIC
 # MAGIC Rebuilt in full from bronze on each run (simple and always consistent at this size).
 # MAGIC Switch to incremental MERGE if run time becomes a problem.
@@ -23,6 +24,51 @@
 
 dbutils.widgets.text("catalog", "mandi_dev")
 C = dbutils.widgets.get("catalog")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Which bronze rows to use: final days, plus the latest complete version of each recent day
+# MAGIC A provisional version is **complete** when all `expected_rows` (from its folder name) have loaded;
+# MAGIC a partly uploaded version is ignored until the laptop finishes it. A day that is final never
+# MAGIC uses provisional data.
+
+# COMMAND ----------
+
+COLS = ("Arrival_Date, Commodity, Commodity_Code, District, Grade, Market, Max_Price, Min_Price, "
+        "Modal_Price, State, Variety, record_json, folder_arrival_date, source_file, ingested_at")
+
+spark.sql(f"""
+CREATE OR REPLACE TEMP VIEW bronze_in_scope AS
+WITH final_days AS (
+  SELECT DISTINCT to_date(folder_arrival_date) AS day FROM {C}.bronze.mandi_prices_raw
+),
+versions AS (
+  SELECT to_date(folder_arrival_date) AS day, pulled_at,
+         COUNT(*) AS rows_loaded, MAX(expected_rows) AS expected_rows
+  FROM {C}.bronze.mandi_prices_provisional_raw
+  GROUP BY ALL
+),
+chosen AS (                                   -- latest complete version of each non-final day
+  SELECT day, max(pulled_at) AS pulled_at
+  FROM versions
+  WHERE rows_loaded = expected_rows
+    AND day NOT IN (SELECT day FROM final_days)
+  GROUP BY day
+)
+SELECT {COLS}, 'final' AS data_status, CAST(NULL AS STRING) AS pulled_at
+FROM {C}.bronze.mandi_prices_raw
+UNION ALL
+SELECT {", ".join("p." + c.strip() for c in COLS.split(","))}, 'provisional' AS data_status, p.pulled_at
+FROM {C}.bronze.mandi_prices_provisional_raw p
+JOIN chosen c ON to_date(p.folder_arrival_date) = c.day AND p.pulled_at = c.pulled_at
+""")
+
+display(spark.sql("""
+SELECT data_status, COUNT(DISTINCT folder_arrival_date) AS days, COUNT(*) AS rows,
+       MIN(folder_arrival_date) AS first_day, MAX(folder_arrival_date) AS last_day
+FROM bronze_in_scope GROUP BY data_status
+"""))
 
 # COMMAND ----------
 
@@ -61,7 +107,7 @@ INSERT INTO {C}.silver.ref_state_alias VALUES
 # Any state in bronze that the mapping doesn't know? Silver would keep its raw name; list them to add.
 unmapped = spark.sql(f"""
     SELECT DISTINCT trim(b.State) AS state_raw
-    FROM {C}.bronze.mandi_prices_raw b
+    FROM bronze_in_scope b
     LEFT ANTI JOIN {C}.silver.ref_state_alias a ON trim(b.State) = a.state_raw
 """)
 if unmapped.count():
@@ -96,8 +142,8 @@ WITH typed AS (
     try_cast(b.Min_Price   AS DECIMAL(12,2))      AS min_price,        -- Rs per quintal
     try_cast(b.Max_Price   AS DECIMAL(12,2))      AS max_price,
     try_cast(b.Modal_Price AS DECIMAL(12,2))      AS modal_price,
-    b.record_json, b.source_file, b.ingested_at
-  FROM {C}.bronze.mandi_prices_raw b
+    b.record_json, b.source_file, b.ingested_at, b.data_status, b.pulled_at
+  FROM bronze_in_scope b
   LEFT JOIN {C}.silver.ref_state_alias a ON trim(b.State) = a.state_raw
 ),
 series AS (                                        -- one market's price level for one crop in one month
@@ -170,7 +216,7 @@ COMMENT 'One row per mandi price report: typed, standard state names, quality-ch
 AS
 SELECT report_id, arrival_date, state, state_raw, district, market, commodity, commodity_code,
        variety, grade, min_price, max_price, modal_price,
-       is_price_outlier, is_unit_suspect, level_ratio, source_file, ingested_at
+       is_price_outlier, is_unit_suspect, level_ratio, data_status, pulled_at, source_file, ingested_at
 FROM (
   SELECT *,
     sha2(concat_ws('|', arrival_date, state_raw, district, market, commodity, variety, grade,
@@ -190,7 +236,7 @@ CREATE OR REPLACE TABLE {C}.silver.mandi_prices_quarantine
 COMMENT 'Rows that failed a silver quality rule, with the reason. Kept for review, never silently dropped.'
 AS
 SELECT quality_issues, arrival_date, state_raw, district, market, commodity, variety, grade,
-       min_price, max_price, modal_price, record_json, source_file, ingested_at
+       min_price, max_price, modal_price, data_status, record_json, source_file, ingested_at
 FROM silver_candidates
 WHERE quality_issues <> ''
 """)
@@ -206,20 +252,21 @@ WHERE quality_issues <> ''
 
 counts = spark.sql(f"""
 SELECT
-  (SELECT COUNT(*) FROM {C}.bronze.mandi_prices_raw)                        AS bronze_rows,
+  (SELECT COUNT(*) FROM bronze_in_scope)                                    AS bronze_rows,
   (SELECT COUNT(*) FROM {C}.silver.mandi_prices)                            AS silver_rows,
   (SELECT COUNT(*) FROM {C}.silver.mandi_prices_quarantine)                 AS quarantined_rows,
   (SELECT COUNT(*) FROM silver_candidates WHERE quality_issues = '')
     - (SELECT COUNT(*) FROM {C}.silver.mandi_prices)                        AS exact_copies_removed,
   (SELECT COUNT(*) FROM {C}.silver.mandi_prices WHERE is_price_outlier)     AS outlier_rows,
-  (SELECT COUNT(*) FROM {C}.silver.mandi_prices WHERE is_unit_suspect)      AS unit_suspect_rows
+  (SELECT COUNT(*) FROM {C}.silver.mandi_prices WHERE is_unit_suspect)      AS unit_suspect_rows,
+  (SELECT COUNT(*) FROM {C}.silver.mandi_prices WHERE data_status = 'provisional') AS provisional_rows
 """).first()
 
 print(counts.asDict())
 accounted = counts.silver_rows + counts.quarantined_rows + counts.exact_copies_removed
 if accounted != counts.bronze_rows:
-    raise Exception(f"Reconciliation failed: bronze {counts.bronze_rows:,} vs accounted {accounted:,}")
-print(f"Reconciliation passed: all {counts.bronze_rows:,} bronze rows accounted for.")
+    raise Exception(f"Reconciliation failed: bronze rows used {counts.bronze_rows:,} vs accounted {accounted:,}")
+print(f"Reconciliation passed: all {counts.bronze_rows:,} bronze rows used are accounted for.")
 
 spark.sql(f"""
 CREATE TABLE IF NOT EXISTS {C}.ops.silver_quality_log (
@@ -227,15 +274,19 @@ CREATE TABLE IF NOT EXISTS {C}.ops.silver_quality_log (
   exact_copies_removed BIGINT, outlier_rows BIGINT
 ) COMMENT 'One row per silver run: how many rows passed, failed, were de-duplicated or flagged'
 """)
-# Added later: older runs keep NULL here (they didn't measure it), new runs fill it.
-if "unit_suspect_rows" not in spark.table(f"{C}.ops.silver_quality_log").columns:
-    spark.sql(f"ALTER TABLE {C}.ops.silver_quality_log ADD COLUMNS (unit_suspect_rows BIGINT)")
+# Columns added later: older runs keep NULL there (they didn't measure it), new runs fill it.
+existing = spark.table(f"{C}.ops.silver_quality_log").columns
+for col in ["unit_suspect_rows", "provisional_rows"]:
+    if col not in existing:
+        spark.sql(f"ALTER TABLE {C}.ops.silver_quality_log ADD COLUMNS ({col} BIGINT)")
 spark.sql(f"""
 INSERT INTO {C}.ops.silver_quality_log
-  (run_at, bronze_rows, silver_rows, quarantined_rows, exact_copies_removed, outlier_rows, unit_suspect_rows)
+  (run_at, bronze_rows, silver_rows, quarantined_rows, exact_copies_removed, outlier_rows,
+   unit_suspect_rows, provisional_rows)
 VALUES (current_timestamp(),
   {counts.bronze_rows}, {counts.silver_rows}, {counts.quarantined_rows},
-  {counts.exact_copies_removed}, {counts.outlier_rows}, {counts.unit_suspect_rows})
+  {counts.exact_copies_removed}, {counts.outlier_rows}, {counts.unit_suspect_rows},
+  {counts.provisional_rows})
 """)
 
 # COMMAND ----------

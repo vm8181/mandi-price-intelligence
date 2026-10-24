@@ -4,6 +4,50 @@ Each entry records a choice, the options considered, and why. Newest first.
 
 ---
 
+## 009. Show recent days as provisional data; upload separately from download
+
+**Date:** 24 Oct 2026
+**In short:** day-level snapshot change data capture (CDC). Row-level CDC isn't possible
+because the API has no change feed and records have no unique ID; the day is the smallest
+unit whose completeness can be proved, so a changed day is re-captured and replaced whole.
+
+**Decision:**
+- Recent days (the last 30, still receiving late reports) are uploaded as **provisional
+  versions** to `mandi_v2_provisional/arrival_date=D/pulled_at=T/expected_rows=N/`, but
+  only when a new download has changed the day and passed both completeness checks.
+- Silver uses a day's **final** data if it exists, otherwise its **latest complete**
+  provisional version, and marks each row `data_status` final or provisional.
+- Upload runs as its own scheduled task every 2 hours, separate from the nightly download.
+
+**Why:**
+- Holding days back until final left Databricks 30 days behind; a price tracker a month
+  late is of little use.
+- During the backfill, the download step ran for days, so the upload step that followed it
+  never started: 119 finished days were stuck on the laptop. Separate tasks fix that.
+- The row count in the folder name lets silver tell a fully uploaded version from a partly
+  uploaded one, without a separate manifest.
+
+**Options considered:**
+- Overwrite the same files each night: Auto Loader doesn't reload changed files by default,
+  and making it do so is fragile.
+- Add every refresh to bronze: up to 30 copies of each recent day.
+- Separate provisional area, uploaded only on change, superseded versions removed after
+  each load (chosen): bounded storage, and every row's status is explicit.
+
+**This is change data capture at day level (snapshot CDC).** The source has no change log,
+no `updated_at` and no record ID, so row-level CDC would mean guessing which rows changed.
+Instead a change is detected per day (row count on disk against the API's current total),
+only changed days are captured and sent, and silver replaces the whole day.
+
+**Safeguards:** the downloader removes a day's `_REFRESHED` marker before rewriting it, and
+the uploader only sends days whose files are older than that marker and unchanged during
+the upload, so a half-rewritten day is never sent.
+
+**Known limit:** a final day overrides provisional data as soon as any of its rows load; a
+final upload interrupted halfway is retried within 2 hours.
+
+---
+
 ## 008. Gold is a star schema; national prices are medians of market prices
 
 **Date:** 24 Oct 2026

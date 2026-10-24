@@ -81,12 +81,19 @@ def main() -> None:
     print()
     print(f"Waiting to upload: {len(done) - len(uploaded):,} finished day(s)")
     print(f"Recent days still collecting late uploads: {len(recent_have)} of {len(recent)} downloaded so far")
+    try:
+        from upload_to_databricks import provisional_candidates
+        sent = sum(1 for d in recent if (folder(d) / "_PROVISIONAL_UPLOADED").exists())
+        print(f"Recent days in Databricks as provisional: {sent} of {len(recent)}; "
+              f"{len(provisional_candidates(ROOT))} with a newer version waiting to upload")
+    except Exception as err:                 # status must never fail because of this line
+        print(f"Provisional uploads: unknown ({type(err).__name__})")
 
     if gaps:
         newest_gap = max(gaps)
         print(f"Older days not finished yet: {len(gaps):,}  (newest: {newest_gap:%d %b %Y}, oldest: {min(gaps):%d %b %Y})")
     else:
-        print("Older days not finished yet: none, the 10-year backfill is complete")
+        print("Older days not finished yet: none, the backfill is complete")
 
     # Days whose most recent attempt failed and that still aren't finished.
     manifest = ROOT / "_manifest.csv"

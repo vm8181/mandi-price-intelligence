@@ -2,18 +2,23 @@
   One-time setup for the nightly run. Run it once from the project folder:
     powershell -ExecutionPolicy Bypass -File .\setup_scheduled_task.ps1
 
-  It does two things:
+  It does three things:
     1. Saves your data.gov.in API key as a Windows user environment variable, so the
-       scheduled task can use it without you typing it. You paste it into a hidden
+       scheduled tasks can use it without you typing it. You paste it into a hidden
        prompt, so it never appears on screen or in PowerShell's command history.
-    2. Creates (or updates) a Task Scheduler task that runs daily_run.ps1 every night.
+    2. Creates (or updates) the download task: daily_run.ps1 -Step Download, every night.
+    3. Creates (or updates) the upload task: daily_run.ps1 -Step Upload, every 2 hours.
+       Separate from the download so a long backfill never holds back finished days.
 
-  Run it again at any time to change the key or the time; it replaces the old settings.
+  Run it again at any time to change the key or the times; it replaces the old settings.
+  Answer "n" when asked to replace the key if you only want to update the tasks.
 #>
 
 $ProjectDir = $PSScriptRoot                          # the folder this script is in
-$TaskName   = "Mandi Price Intelligence - daily run"
-$RunAt      = "21:00"                                # 9 pm every day
+$TaskName       = "Mandi Price Intelligence - daily run"     # the download
+$RunAt          = "21:00"                                    # 9 pm every day
+$UploadTaskName = "Mandi Price Intelligence - upload"
+$UploadEvery    = New-TimeSpan -Hours 2
 
 # ---------- 1. Save the API key ----------
 $existing = [Environment]::GetEnvironmentVariable("DATAGOV_API_KEY", "User")
@@ -44,13 +49,13 @@ if ($answer -eq "y") {
     Write-Host "API key saved ($($key.Length) characters)." -ForegroundColor Green
 }
 
-# ---------- 2. Create the scheduled task ----------
+# ---------- 2. Create the download task ----------
 # What to run: PowerShell, running daily_run.ps1 from the project folder.
 #   -NoProfile                skip personal PowerShell settings, so runs behave the same every time
 #   -ExecutionPolicy Bypass   allow this one script to run, without changing Windows' setting
 #   -WindowStyle Minimized    the window appears minimised in the taskbar, so you can see it's running
 $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-    -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -File `"$ProjectDir\daily_run.ps1`"" `
+    -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -File `"$ProjectDir\daily_run.ps1`" -Step Download" `
     -WorkingDirectory $ProjectDir
 
 # When: every day at $RunAt.
@@ -74,8 +79,33 @@ $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" 
 
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings `
     -Principal $principal -Force `
-    -Description "Downloads mandi prices from data.gov.in and uploads finished days to Databricks. Project: $ProjectDir" | Out-Null
+    -Description "Downloads mandi prices from data.gov.in (backfill and daily refresh). Project: $ProjectDir" | Out-Null
 
-Write-Host "Scheduled task '$TaskName' created: every day at $RunAt." -ForegroundColor Green
+Write-Host "Scheduled task '$TaskName' created: download every day at $RunAt." -ForegroundColor Green
+
+# ---------- 3. Create the upload task ----------
+# Same program, upload step only. Starts at the next even hour, then every 2 hours.
+#   -MultipleInstances IgnoreNew   if an upload is still going, skip this one (the uploader's
+#                                  own lock would stop it anyway)
+#   -ExecutionTimeLimit 6 hours    a large backlog can take a while; a stuck run is stopped
+$uploadAction = New-ScheduledTaskAction -Execute "powershell.exe" `
+    -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -File `"$ProjectDir\daily_run.ps1`" -Step Upload" `
+    -WorkingDirectory $ProjectDir
+$now = Get-Date
+$firstRun = $now.Date.AddHours($now.Hour - ($now.Hour % 2) + 2)     # the next even hour
+$uploadTrigger = New-ScheduledTaskTrigger -Once -At $firstRun `
+    -RepetitionInterval $UploadEvery -RepetitionDuration (New-TimeSpan -Days 3650)
+$uploadSettings = New-ScheduledTaskSettingsSet `
+    -StartWhenAvailable `
+    -MultipleInstances IgnoreNew `
+    -ExecutionTimeLimit (New-TimeSpan -Hours 6) `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries
+
+Register-ScheduledTask -TaskName $UploadTaskName -Action $uploadAction -Trigger $uploadTrigger `
+    -Settings $uploadSettings -Principal $principal -Force `
+    -Description "Uploads finished days and new versions of recent days to Databricks. Project: $ProjectDir" | Out-Null
+
+Write-Host "Scheduled task '$UploadTaskName' created: upload every 2 hours, first at $($firstRun.ToString('dd MMM HH:mm'))." -ForegroundColor Green
 Write-Host "Logs will appear in $ProjectDir\logs"
-Write-Host "To run it now:   Start-ScheduledTask -TaskName '$TaskName'"
+Write-Host "To run now:   Start-ScheduledTask -TaskName '$TaskName'   or   '$UploadTaskName'"

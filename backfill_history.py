@@ -194,6 +194,10 @@ def main() -> None:
                 continue
             if api_total is not None:
                 say(f"{label}: {on_disk:,} rows on disk, the API now has {api_total:,}: downloading again")
+            # The files are about to change: remove the "complete" marker first, so the
+            # uploader never sends a day halfway through being rewritten. It comes back
+            # only if the new download passes both checks.
+            (folder(d, c) / "_REFRESHED").unlink(missing_ok=True)
             r = download_day(client, d, c, folder(d, c), limit=args.limit, workers=args.workers)
         except ApiKeyRefused as err:
             sys.exit(str(err))                   # fail fast: nothing else can succeed

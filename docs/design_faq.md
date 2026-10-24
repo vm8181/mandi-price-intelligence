@@ -7,7 +7,7 @@ layer, in the order the data flows.
 [Architecture](#architecture) · [Extraction](#extraction) ·
 [Completeness](#completeness) · [Storage](#storage) · [Databricks platform](#databricks-platform) ·
 [Bronze](#bronze) · [Silver](#silver) · [Gold](#gold) ·
-[Orchestration](#orchestration) · [Git and code](#git-and-code) ·
+[Recent days](#recent-days-and-late-data) · [Orchestration](#orchestration) · [Git and code](#git-and-code) ·
 [Security](#security) · [Testing](#testing) · [What I'd do next](#what-id-do-next)
 
 ---
@@ -314,6 +314,73 @@ linked to its market and date. Any failure stops the run.
 
 ---
 
+## Recent days and late data
+
+**Mandis keep uploading for weeks. How do you show recent days without showing wrong numbers?**
+Recent days are shown as **provisional**: every row carries `data_status`, and weekly and
+monthly figures count their `provisional_days`. Users see the latest prices and know
+they may still change, the way official statistics publish preliminary figures.
+
+**How does a recent day get updated?**
+Each night the laptop re-checks the last 30 days. When a day's total has grown and the new
+download passes both completeness checks, that version is uploaded to a new folder,
+`pulled_at=T/expected_rows=N/`. Silver uses the final day if it exists, otherwise the
+latest complete version.
+
+**Why not overwrite the same files?**
+Auto Loader doesn't reload a file that changed under the same name by default, so the
+update would be silently ignored. New folder per version makes every update a new file.
+
+**How does Databricks know a version uploaded completely?**
+The folder name carries the expected row count. A version counts only when that many rows
+have loaded; a partly uploaded one is ignored until the laptop finishes it.
+
+**Doesn't bronze fill up with old versions?**
+No: after each load, versions superseded by a newer complete one, and all provisional rows
+of days that became final, are deleted. Only changed days are uploaded at all.
+
+**How do you stop a day being uploaded while it's being rewritten?**
+The downloader removes the day's "complete" marker before rewriting it. The uploader only
+sends days whose files are older than that marker, and checks the files didn't change
+during the upload.
+
+**Is this change data capture (CDC)?**
+Yes, at the level of a whole day: **day-level snapshot CDC**. Textbook CDC reads a
+database's change log, or rows with an `updated_at` column, and applies each changed row
+with `MERGE`. This source has neither: it's a public API with no change feed, and its
+records have no unique ID (markets legitimately send several reports a day for the same
+crop), so a corrected price can't be told apart from an extra report. So changes are
+detected per day instead: compare the row count on disk with the API's current total;
+re-download only the days that changed; upload them as a new version; silver replaces the
+whole day. The day is the smallest unit whose completeness can be proved.
+
+**Where would row-level CDC tools help here?**
+Downstream, inside Databricks: rebuilding only changed days in silver instead of everything
+(`MERGE` or `REPLACE WHERE`), Delta Change Data Feed to make gold incremental, and SCD
+Type 2 in `dim_market` to record when the source renamed a market.
+
+**Is this change data capture (CDC)?**
+Yes, at the level of a whole day: **day-level snapshot CDC**. Classic CDC reads a
+database's change log, or rows with an `updated_at` column, and applies row-level inserts,
+updates and deletes with `MERGE`. This source has neither: it's a public API with no change
+feed, and records have no unique ID, so a corrected price can't be told apart from a second
+report at a new price. So changes are detected per day (the API's current total against the
+rows on disk), a changed day is re-captured as a complete snapshot, and silver replaces the
+whole day. The day is the smallest unit whose completeness can be proved.
+
+**Where would row-level CDC tools help here?**
+Downstream, inside Databricks: incremental silver (replace only changed days with `MERGE`
+or `REPLACE WHERE` instead of rebuilding everything), Delta Change Data Feed so gold
+recomputes only affected days, and SCD Type 2 in `dim_market` to record market renames.
+These are the planned next step once full rebuilds become slow.
+
+**Why is upload a separate scheduled task?**
+During the backfill the download ran for days, and the upload step after it never started:
+119 finished days sat on the laptop. Uploading every 2 hours on its own schedule means
+finished days reach Databricks within hours, however long the download takes.
+
+---
+
 ## Orchestration
 
 **Why a Databricks job and not running notebooks by hand?**
@@ -397,9 +464,10 @@ The repository is public; personal addresses in public files attract spam scrape
 ## Testing
 
 **What do the tests cover?**
-26 tests, each reproducing a failure met against the real API: the User-Agent, refused
+34 tests, each reproducing a failure met against the real API: the User-Agent, refused
 keys, rate limits, internet outages, slow downloads, key redaction, empty answers, unknown
-state names, duplicates, partly written files, late uploads, and restarting without re-downloading.
+state names, duplicates, partly written files, late uploads, restarting without re-downloading,
+and which recent-day versions are uploaded (never a day being rewritten, never the same version twice).
 
 **How do you test without calling the API?**
 A fake client answers like the API, including its failures (empty answers, duplicates), so
@@ -413,7 +481,6 @@ and fails if wrong. Unit tests for Spark logic are a next step.
 
 ## What I'd do next
 
-- **Recent days as provisional data** so gold reaches yesterday instead of 30 days back.
 - **Incremental silver** once run times grow with the full history.
 - **Market reference table** for markets published under two names.
 - **Expected units per crop** for poultry and flowers, where most markets don't use quintals.

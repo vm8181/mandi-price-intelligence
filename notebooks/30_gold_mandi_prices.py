@@ -9,8 +9,8 @@
 # MAGIC | `dim_market` | market (state, district, market) | Stable key: `xxhash64` of the names, the same on every rebuild |
 # MAGIC | `dim_commodity` | crop | |
 # MAGIC | `dim_date` | calendar day, 2016 to 2027 | Week (Monday start), month, quarter; days with no trade still exist |
-# MAGIC | `fact_market_day_price` | day x market x crop x variety x grade | Lowest min, highest max, average modal, from non-outlier reports |
-# MAGIC | `agg_price_weekly`, `agg_price_monthly` | week/month x crop x state, plus "All India" | Median of market prices; unit-suspect series left out |
+# MAGIC | `fact_market_day_price` | day x market x crop x variety x grade | Lowest min, highest max, average modal, from non-outlier reports; `data_status` final or provisional |
+# MAGIC | `agg_price_weekly`, `agg_price_monthly` | week/month x crop x state, plus "All India" | Median of market prices; unit-suspect series left out; `provisional_days` shows how much may still change |
 # MAGIC
 # MAGIC **How silver's flags are used**
 # MAGIC - One-off **outliers** are left out of every price but counted in `outlier_reports`, so every silver row is accounted for.
@@ -98,7 +98,8 @@ SELECT
   max(CASE WHEN NOT is_price_outlier THEN max_price END)             AS max_price,
   round(avg(CASE WHEN NOT is_price_outlier THEN modal_price END), 2) AS modal_price,
   bool_or(is_unit_suspect)                                           AS is_unit_suspect,
-  round(avg(level_ratio), 4)                                         AS level_ratio
+  round(avg(level_ratio), 4)                                         AS level_ratio,
+  max(data_status)                                                   AS data_status   -- one status per day
 FROM {C}.silver.mandi_prices
 GROUP BY arrival_date, state, district, market, commodity, variety, grade
 """)
@@ -124,6 +125,8 @@ for name, unit in [("weekly", "WEEK"), ("monthly", "MONTH")]:
       f.commodity_key,
       CASE WHEN grouping(m.state) = 1 THEN 'All India' ELSE m.state END AS state,
       COUNT(DISTINCT f.arrival_date)                                AS days_covered,   -- a partial period has fewer
+      COUNT(DISTINCT CASE WHEN f.data_status = 'provisional'
+                          THEN f.arrival_date END)                  AS provisional_days, -- may still change
       COUNT(DISTINCT f.market_key)                                  AS markets_reporting,
       SUM(f.report_count)                                           AS reports,
       percentile_approx(f.modal_price, 0.5)                         AS median_modal_price,
@@ -151,7 +154,7 @@ spark.sql(f"""
 CREATE OR REPLACE VIEW {C}.gold.v_market_day_price AS
 SELECT f.arrival_date, m.state, m.district, m.market, c.commodity, f.variety, f.grade,
        f.min_price, f.max_price, f.modal_price, f.report_count, f.outlier_reports,
-       f.is_unit_suspect, f.level_ratio
+       f.is_unit_suspect, f.level_ratio, f.data_status
 FROM {C}.gold.fact_market_day_price f
 JOIN {C}.gold.dim_market    m ON m.market_key    = f.market_key
 JOIN {C}.gold.dim_commodity c ON c.commodity_key = f.commodity_key
@@ -219,7 +222,8 @@ UNION ALL SELECT 'agg_price_monthly', COUNT(*) FROM {C}.gold.agg_price_monthly
 # COMMAND ----------
 
 display(spark.sql(f"""
-SELECT w.period_start AS week, c.commodity, w.median_modal_price, w.markets_reporting, w.days_covered
+SELECT w.period_start AS week, c.commodity, w.median_modal_price, w.markets_reporting,
+       w.days_covered, w.provisional_days
 FROM {C}.gold.agg_price_weekly w
 JOIN {C}.gold.dim_commodity c ON c.commodity_key = w.commodity_key
 WHERE w.state = 'All India' AND c.commodity IN ('Onion', 'Tomato', 'Potato')

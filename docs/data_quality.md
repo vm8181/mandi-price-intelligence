@@ -125,6 +125,27 @@ silver rebuilt if this rule changes.
 names *with different prices* stays as two reports. Gold's market-day summary treats
 them as two reports of the same market, which is accurate to the source.
 
+### The source changed in mid-2026 (measured by month, 26 Apr to 24 Sep 2026)
+
+| Month | Market names with stray spaces | Copies after cleaning | Quarantined |
+| --- | --- | --- | --- |
+| May | 0% | 0.001% | 0.009% |
+| Jun | 0.42% | 0.087% | 0.012% |
+| Jul | 0.32% | 0.067% | 0.013% |
+| Aug | **5.78%** | 0.012% | 0.033% |
+| Sep (to 24th) | 5.57% | **0.542%** | **0.062%** |
+
+- **Stray spaces began in June and became widespread in August**, mostly Maharashtra
+  markets. In August most markets were simply *renamed* with the space (few copies); in
+  September many were published under **both** names (copies jumped about 45 times).
+- **Quarantine rates rose about 5 times from July to September**, mainly prices under Rs 1.
+- **Why trimming matters beyond copies:** without it, "APMC Mumbai" would become a new
+  market in August and every trend line for it would break in two. Silver's cleaning
+  keeps each market's history continuous across the source's change.
+- **Takeaway:** source quality drifts. These per-month rates are worth tracking as a
+  monitor, so the next change is noticed in days, not found months later.
+<!-- TODO: add per-month quality rates to ops.silver_quality_log or a monitoring view -->
+
 ## Names
 
 - **States:** the source uses "Kerala" and "Keralam" (82 and 198 of 228 days),

@@ -14,7 +14,7 @@ bronze  ->  silver  ->  gold        daily at 07:00 IST, serverless
 | Alerts | email on failure only | A daily success email gets ignored |
 | Concurrency | 1 run at a time (default), extra runs queue | Two runs never rebuild silver at once |
 | Parameter | `catalog = mandi_dev` | Point the same job at `mandi_prod` by changing one value |
-| Schedule | 07:00 IST | The laptop downloads and uploads from 21:00; the morning leaves a safe gap |
+| Schedule | 07:00 IST | The laptop downloads from 21:00 and uploads every 2 hours; the morning run picks up the night's data |
 
 All three tasks are **idempotent**: bronze's Auto Loader skips files it has already loaded,
 and silver and gold rebuild in full, so a retry or a repeat run never creates duplicates.

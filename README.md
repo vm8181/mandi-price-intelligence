@@ -9,8 +9,8 @@ complete, and builds a **bronze → silver → gold** lakehouse with quality rul
 reconciliation at every step, and a daily automated job.
 
 > **Status:** extraction, bronze, silver, gold and the daily Databricks job are built and
-> verified on real data. The historical backfill is downloading. Next: recent days in
-> Databricks (currently held back until final), then the Power BI dashboard.
+> verified on real data. Recent days are shown as provisional until final. The historical
+> backfill is downloading. Next: the Power BI dashboard.
 
 ![Architecture](docs/images/architecture.png)
 
@@ -66,12 +66,12 @@ found, silently loses rows when paged.
 | Phase | What | Status |
 | --- | --- | --- |
 | Extraction | Multi-year history of daily prices, provably complete, nightly | ✅ Built · backfill running |
-| Upload | Finished days to a Databricks volume, each verified | ✅ Built |
+| Upload | Final days and provisional versions of recent days to Databricks, every 2 hours, each verified | ✅ Built |
 | Bronze | Auto Loader into Delta, reconciled per file | ✅ Verified |
 | Silver | Types, quality rules, quarantine, de-duplication, flags | ✅ Verified |
 | Gold | Star schema, market-day fact, weekly and monthly prices | ✅ Verified |
 | Orchestration | Databricks job bronze → silver → gold, daily, alerts | ✅ Running daily at 07:00 IST |
-| Recent days | Provisional upload so gold reaches yesterday | 🔜 Next |
+| Recent days | Shown as provisional until final, so gold reaches yesterday | ✅ Built · first run pending |
 | Reporting | Power BI report, public price tracker | Planned |
 | CI | Tests on every push (GitHub Actions) | Planned |
 
@@ -101,28 +101,40 @@ found, silently loses rows when paged.
   uploading late: Tamil Nadu's 1 October grew 2.6% over three weeks.
 - Raw answers are saved unchanged, gzip-compressed.
 
-### 2. Upload · [`upload_to_databricks.py`](upload_to_databricks.py)
-Finished days only, newest first; every file's size verified in the volume; a day's
-`_DONE` marker uploaded last so a half-uploaded day is never treated as complete.
+### 2. Upload (laptop, every 2 hours) · [`upload_to_databricks.py`](upload_to_databricks.py)
+Runs as its own scheduled task, so a long download never holds back finished days.
+
+| Kind | When | Where in the volume |
+| --- | --- | --- |
+| **Final** | Once, when a day is older than 30 days | `mandi_v2/arrival_date=D/commodity=ALL/` |
+| **Provisional** | Each time a recent day's data changes and passes both checks | `mandi_v2_provisional/arrival_date=D/pulled_at=T/expected_rows=N/` |
+
+Every file's size is verified after upload. A day being rewritten is never sent: the
+downloader removes its "complete" marker first, and the uploader checks the files didn't
+change during the upload. The row count in the folder name lets Databricks tell a fully
+uploaded version from a partly uploaded one.
 
 ### 3. Bronze · [`notebooks/10_bronze_mandi_prices.py`](notebooks/10_bronze_mandi_prices.py)
 - **Auto Loader** loads only files it hasn't seen (checkpoint), so reruns never duplicate.
 - Every value kept **as text plus the original record JSON**: a change in the source's
   types can't break the load, and the raw record is always provable.
 - Lineage columns: source file, file time, load time.
+- Final days and provisional versions load into separate tables; superseded provisional
+  versions, and those of days that became final, are removed after each load.
 - **Reconciliation:** each file's rows must equal the API's total for that state, or the run fails.
 
 ### 4. Silver · [`notebooks/20_silver_mandi_prices.py`](notebooks/20_silver_mandi_prices.py)
 
 | Step | What |
 | --- | --- |
+| Final or provisional | Each day from its final data if it exists, otherwise its latest **complete** provisional version; marked `data_status` |
 | Types | Dates as `dd/MM/yyyy`, prices as decimals (`try_cast`, so one bad value can't stop the run) |
 | Standard names | State spellings mapped through a reference table (`Keralam` → `Kerala`, `Chattisgarh` → `Chhattisgarh`) |
 | Quality rules | Failing rows go to **quarantine** with the reason, never silently dropped |
 | Copies after cleaning | Reports identical once spaces are trimmed are kept once |
 | Unit flag | A market's whole month for a crop 10x off the typical market |
 | Outlier flag | One price 10x off its own market's usual price |
-| **Reconciliation** | bronze = silver + quarantine + copies removed, or the run fails |
+| **Reconciliation** | rows used from bronze = silver + quarantine + copies removed, or the run fails |
 
 Each run appends its counts to `ops.silver_quality_log`, so quality is tracked over time.
 
@@ -142,6 +154,8 @@ A **star schema** for Power BI:
   market's trend and are left out of comparisons across markets.
 - State and national prices are **medians** of market prices, so one bad market can't move them.
 - Keys are `xxhash64` hashes of the names: the same on every rebuild.
+- Every fact row carries `data_status`, and weekly and monthly rows count their
+  `provisional_days`, so reports can mark figures that may still change.
 - **Checks:** every silver report in the fact table, no key clashes, no duplicate grain,
   every fact linked to its dimensions. Any failure stops the run.
 
@@ -152,7 +166,7 @@ the previous one succeeded, retries once after 5 minutes, and failures email an 
 
 ## What the data revealed
 
-Findings from the first verification runs (late August to September 2026 data).
+Findings from the first verification runs (April to September 2026 data).
 
 **1. Paging an unstable API loses data silently.** In the first download, 94 of 228 days
 had real rows replaced by duplicates, and **every day's row count still matched**. Found
@@ -178,7 +192,12 @@ So one flag became two with different business meanings: **unit-suspect series**
 for their own trend, not for comparison) and **one-off outliers** (excluded). Outlier
 flags fell from 2,361 to 45. [Details](docs/data_quality.md)
 
-**4. First trend: All India wholesale prices, late Aug to Sep 2026** (median of about
+**4. The source changed in mid-2026.** Measured month by month, market names with stray
+spaces went from 0% in May to 5.8% in August, and copies after cleaning jumped about 45
+times in September. Trimming in silver kept each market's history continuous; without it,
+"APMC Mumbai" would have become a new market mid-year. [Details](docs/data_quality.md)
+
+**5. First trend: All India wholesale prices, late Aug to Sep 2026** (median of about
 1,000 markets each week)
 
 | Crop | Week of 31 Aug | Week of 14 Sep | |
@@ -200,7 +219,7 @@ Wholesale, not retail. The full history will show whether this is the usual seas
 | Gold | All silver reports in fact; keys unique; grain unique; dimensions linked | Run fails |
 | Job | Each layer runs only if the previous passed | Email alert; dashboard keeps yesterday's correct data |
 
-Every step is **idempotent** (safe to rerun) and **resumable**. 26 automated tests
+Every step is **idempotent** (safe to rerun) and **resumable**. 34 automated tests
 reproduce failures met against the real API.
 
 ## Engineering challenges solved
@@ -215,6 +234,8 @@ reproduce failures met against the real API.
 | Wrong secret saved | Databricks token saved as the API key | Setup scripts validate each secret | [incident](docs/incidents/2026-10-23-wrong-secret-saved.md) |
 | Restarts re-downloaded | Stopping meant starting again | Check before download against the API total | [decision 006](docs/decisions.md) |
 | Mixed units in one column | Per-bunch prices looked like outliers | Series-level unit flag | [data quality](docs/data_quality.md) |
+| Finished days stuck on the laptop | During the backfill the download ran for days, so the upload after it never started | Upload as its own task every 2 hours | [decision 009](docs/decisions.md) |
+| Recent days a month late | Days were held back until final | Provisional versions, marked as such | [decision 009](docs/decisions.md) |
 
 ## Concepts, tech stack and operations
 
@@ -234,7 +255,7 @@ reproduce failures met against the real API.
 | Area | Concepts |
 | --- | --- |
 | Architecture | Medallion (bronze, silver, gold), lakehouse, separation of extraction and processing |
-| Ingestion | Incremental loading, checkpoints, schema-on-read, raw data kept unchanged, late-arriving data window |
+| Ingestion | Incremental loading, checkpoints, schema-on-read, raw data kept unchanged, late-arriving data, day-level snapshot CDC, provisional and final data |
 | Data quality | Profiling before rules, quarantine with reasons, reconciliation, robust outlier detection (median), reference tables for names |
 | Modelling | Grain decisions, star schema, hash keys, pre-aggregated tables, `GROUPING SETS` for state and national totals |
 | Performance | Liquid clustering, compressed raw files, full rebuild now with incremental as a measured next step |
@@ -246,7 +267,8 @@ reproduce failures met against the real API.
 
 | When | Where | What |
 | --- | --- | --- |
-| 21:00 daily | Laptop (Task Scheduler) | Download missing and recent days, upload finished days, log to `logs/` |
+| 21:00 daily | Laptop (Task Scheduler) | Download missing days and refresh the last 30; log to `logs/` |
+| Every 2 hours | Laptop (Task Scheduler) | Upload final days and new provisional versions; log to `logs/` |
 | Any time | Laptop | `status.ps1`: progress, gaps, failed days, last run result |
 | 07:00 daily | Databricks job `mandi_daily` | Bronze → silver → gold with checks |
 | On failure | Email | Which task failed; repair from the failed task |
@@ -263,6 +285,7 @@ Full reasoning and alternatives in [`docs/decisions.md`](docs/decisions.md).
 6. A day is complete only when two independent checks pass
 7. Two price flags: unit-suspect series and one-off outliers
 8. Gold as a star schema; national prices as medians of market prices
+9. Recent days shown as provisional; upload separate from download
 
 ## Screenshots
 
@@ -281,14 +304,14 @@ Full reasoning and alternatives in [`docs/decisions.md`](docs/decisions.md).
 ```
 mandi_pipeline/            extraction code: api.py (requests, retries), download.py (one day)
 backfill_history.py        download command (backfill and daily)
-upload_to_databricks.py    upload finished days to the Databricks volume
-daily_run.ps1              nightly run: download, then upload, with logs
-setup_scheduled_task.ps1   one-time: save the API key, create the nightly task
+upload_to_databricks.py    upload final days and provisional versions to Databricks
+daily_run.ps1              runs the download or upload step, with logs
+setup_scheduled_task.ps1   one-time: save the API key, create the download and upload tasks
 setup_databricks_token.ps1 one-time: save and test the Databricks token
 status.ps1 / status.py     progress, gaps, failures, last run
 notebooks/                 Databricks: 10 bronze, 20 silver, 30 gold
 jobs/                      Databricks job definition (YAML) and notes
-tests/                     pytest: 26 tests
+tests/                     pytest: 34 tests
 tools/                     diagnostics: compare downloads, test User-Agent, pull a sample
 docs/
   decisions.md             design decisions and alternatives
@@ -326,7 +349,7 @@ powershell -ExecutionPolicy Bypass -File .\setup_scheduled_task.ps1     # API ke
 - [x] Silver: quality rules, quarantine, de-duplication, unit and outlier flags
 - [x] Gold: star schema, market-day fact, weekly and monthly prices
 - [x] Daily Databricks job with alerts
-- [ ] Recent days as provisional data, so gold reaches yesterday
+- [x] Recent days as provisional data, so gold reaches yesterday
 - [ ] Historical backfill complete
 - [ ] Power BI report and public price tracker
 - [ ] Price signals: best nearby mandi, unusual rises, prices below MSP

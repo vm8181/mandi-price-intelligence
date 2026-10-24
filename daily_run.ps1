@@ -1,19 +1,31 @@
 <#
   Mandi Price Intelligence: nightly run on this laptop.
 
-  What it does, in order:
-    1. Download: fills every missing day of the last 10 years, re-pulls the last week
-       (mandis upload late) and continues the backfill if it isn't finished.
-       Finished days are skipped in a fraction of a second.
-    2. Upload: sends every newly finished day to the Databricks volume and verifies it.
-    3. Writes everything it prints to a log file in .\logs, one file per run,
-       and deletes logs older than 30 days.
+  Steps (choose with -Step; the default, All, runs both in order):
+    Download  fills every missing day of the history window, re-pulls the last 30 days
+              (mandis upload late) and continues the backfill if it isn't finished.
+              Finished days are skipped in a fraction of a second.
+    Upload    sends newly finished days, and new complete versions of recent days, to
+              the Databricks volume and verifies them.
 
-  Started by Windows Task Scheduler (see setup_scheduled_task.ps1), or by hand:
-    powershell -ExecutionPolicy Bypass -File .\daily_run.ps1
+  Two scheduled tasks run the steps separately (see setup_scheduled_task.ps1):
+  Download nightly, Upload every 2 hours. Separate, so a long backfill download never
+  holds back the upload of days that are already finished.
+
+  Everything printed goes to a log file in .\logs (one per run, named by step);
+  logs older than 30 days are deleted.
+
+  By hand:
+    powershell -ExecutionPolicy Bypass -File .\daily_run.ps1                # both steps
+    powershell -ExecutionPolicy Bypass -File .\daily_run.ps1 -Step Upload   # upload only
 
   Safe to stop at any time (shutdown, Ctrl+C): the next run continues where this one stopped.
 #>
+
+param(
+    [ValidateSet("All", "Download", "Upload")]
+    [string]$Step = "All"
+)
 
 # Run from the folder this script lives in, so relative paths like data\raw\mandi work
 # no matter where Task Scheduler starts it.
@@ -27,9 +39,9 @@ $ErrorActionPreference = "Continue"
 $env:PYTHONUNBUFFERED = "1"
 $env:PYTHONIOENCODING = "utf-8"
 
-# One log file per run, e.g. logs\daily_run_2026-10-23_2100.log
+# One log file per run, e.g. logs\download_2026-10-23_2100.log
 New-Item -ItemType Directory -Force -Path "logs" | Out-Null
-$log = Join-Path "logs" ("daily_run_{0}.log" -f (Get-Date -Format "yyyy-MM-dd_HHmm"))
+$log = Join-Path "logs" ("{0}_{1}.log" -f $Step.ToLower(), (Get-Date -Format "yyyy-MM-dd_HHmm"))
 
 # Show a line on screen and append it to the log (UTF-8, so Notepad and VS Code read it cleanly).
 # Write-Host rather than plain output: in PowerShell, anything a function outputs becomes
@@ -52,30 +64,36 @@ function Invoke-Step([string]$name, [string[]]$arguments) {
     return $code
 }
 
-Write-Log "Daily run started on $env:COMPUTERNAME"
+Write-Log "Run started on $env:COMPUTERNAME (step: $Step)"
+$download = 0
+$upload = 0
 
-# The API key comes from a Windows user environment variable, saved once by
-# setup_scheduled_task.ps1. It is never written into this script or the log.
-if (-not $env:DATAGOV_API_KEY) {
-    $env:DATAGOV_API_KEY = [Environment]::GetEnvironmentVariable("DATAGOV_API_KEY", "User")
-}
-if (-not $env:DATAGOV_API_KEY) {
-    Write-Log "STOPPED: DATAGOV_API_KEY is not set. Run setup_scheduled_task.ps1 to save it."
-    exit 1
+if ($Step -in "All", "Download") {
+    # The API key comes from a Windows user environment variable, saved once by
+    # setup_scheduled_task.ps1. It is never written into this script or the log.
+    if (-not $env:DATAGOV_API_KEY) {
+        $env:DATAGOV_API_KEY = [Environment]::GetEnvironmentVariable("DATAGOV_API_KEY", "User")
+    }
+    if (-not $env:DATAGOV_API_KEY) {
+        Write-Log "STOPPED: DATAGOV_API_KEY is not set. Run setup_scheduled_task.ps1 to save it."
+        exit 1
+    }
+    $download = Invoke-Step "Download" @("backfill_history.py", "--last-years", "10", "--all-commodities")
 }
 
-$download = Invoke-Step "Download" @("backfill_history.py", "--last-years", "10", "--all-commodities")
-$upload   = Invoke-Step "Upload"   @("upload_to_databricks.py")
+if ($Step -in "All", "Upload") {
+    $upload = Invoke-Step "Upload" @("upload_to_databricks.py")
+}
 
 # Housekeeping: keep 30 days of logs.
-Get-ChildItem "logs\daily_run_*.log" |
+Get-ChildItem "logs\*.log" |
     Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } |
     Remove-Item -ErrorAction SilentlyContinue
 
 if ($download -eq 0 -and $upload -eq 0) {
-    Write-Log "Daily run finished: OK"
+    Write-Log "Run finished: OK"
     exit 0
 } else {
-    Write-Log "Daily run finished WITH PROBLEMS (download exit $download, upload exit $upload). See above."
+    Write-Log "Run finished WITH PROBLEMS (download exit $download, upload exit $upload). See above."
     exit 1
 }
