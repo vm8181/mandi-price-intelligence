@@ -19,8 +19,6 @@ bronze  ->  silver  ->  gold        daily at 07:00 IST, serverless
 All three tasks are **idempotent**: bronze's Auto Loader skips files it has already loaded,
 and silver and gold rebuild in full, so a retry or a repeat run never creates duplicates.
 
-First run, 24 Oct 2026: succeeded in 2 min 39 s (bronze 1m 0s, silver 54s, gold 43s).
-
 ## Recreate the job
 
 1. Databricks: **Jobs & Pipelines -> Create -> Job**, then **Edit as YAML** (or **View as code -> Edit**).

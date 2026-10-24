@@ -1,13 +1,18 @@
 # Mandi Price Intelligence
 
 An end-to-end data platform on **Databricks** that turns India's official daily mandi
-(wholesale market) prices into answers for farmers, buyers and anyone tracking food
-prices: where a crop sells best nearby, where it trades below the government's support
-price, and which staples are rising unusually fast.
+(wholesale market) prices into trustworthy answers for farmers, traders and anyone
+tracking food prices.
 
-> **Status: in progress.** Extraction, upload and the bronze layer are built and
-> verified. Silver (cleaning) is next. Sections marked *(planned)* describe work not
-> yet done.
+It builds a multi-year history of daily prices from data.gov.in, proves every day is
+complete, and builds a **bronze → silver → gold** lakehouse with quality rules,
+reconciliation at every step, and a daily automated job.
+
+> **Status:** extraction, bronze, silver, gold and the daily Databricks job are built and
+> verified on real data. The historical backfill is downloading. Next: recent days in
+> Databricks (currently held back until final), then the Power BI dashboard.
+
+![Architecture](docs/images/architecture.png)
 
 ---
 
@@ -15,266 +20,336 @@ price, and which staples are rising unusually fast.
 1. [The problem](#the-problem)
 2. [Questions it answers](#questions-it-answers)
 3. [Project status](#project-status)
-4. [Architecture](#architecture)
-5. [The data](#the-data)
-6. [How the pipeline works](#how-the-pipeline-works)
-7. [Data quality and reliability](#data-quality-and-reliability)
+4. [The data](#the-data)
+5. [How the pipeline works](#how-the-pipeline-works)
+6. [What the data revealed](#what-the-data-revealed)
+7. [Reliability: how every number is proved](#reliability-how-every-number-is-proved)
 8. [Engineering challenges solved](#engineering-challenges-solved)
-9. [Key design decisions](#key-design-decisions)
-10. [Results and insights](#results-and-insights)
-11. [Repository structure](#repository-structure)
-12. [How to run it](#how-to-run-it)
-13. [Tests](#tests)
-14. [Tech stack](#tech-stack)
-15. [Roadmap](#roadmap)
-16. [Lessons learned](#lessons-learned)
-17. [Data source and licence](#data-source-and-licence)
+9. [Concepts, tech stack and operations](#concepts-tech-stack-and-operations)
+10. [Key design decisions](#key-design-decisions)
+11. [Screenshots](#screenshots)
+12. [Repository structure](#repository-structure)
+13. [How to run it](#how-to-run-it)
+14. [Roadmap](#roadmap)
+15. [Lessons learned](#lessons-learned)
+16. [Data source](#data-source)
+
+**Deeper reading:** [design decisions](docs/decisions.md) ·
+[data quality findings](docs/data_quality.md) · [incidents](docs/incidents/) ·
+[design FAQ: every why, why not, when](docs/design_faq.md) · [daily job](jobs/README.md)
 
 ---
 
 ## The problem
 
 The same crop can sell at very different prices in mandis a few hours apart, and most
-sellers only know the price at the one they visit. Price spikes in staples such as
-onion, tomato and potato reach households before anyone flags them.
+sellers only know the price at the one they visit. Price spikes in staples such as onion
+and tomato reach households before anyone flags them.
 
-The data to see this is public, on data.gov.in, but hard to use: it arrives as one raw
-row per market, crop and day (about 17,000 rows a day), with inconsistent names, prices
-stored as text, late uploads for weeks after the date, and an API that is slow,
-rate-limited and, as this project found, unreliable when paged.
+The data to see this is public, but hard to use: one raw row per market, crop and day
+(thousands of rows a day), names spelled several ways, prices stored as text, late
+uploads for weeks after the date, some markets entering prices per bunch or per piece
+in a "per quintal" column, and an API that is slow, rate-limited and, as this project
+found, silently loses rows when paged.
 
 ## Questions it answers
 
-| Who | Question | Answered by |
+| Who | Question | Status |
 | --- | --- | --- |
-| Farmer or producer group | Which mandi near me paid best for my crop this week? | Best mandi finder *(planned)* |
-| Trader or retail buyer | Where is supply cheap, and how stable is the price? | Price explorer *(planned)* |
-| Policy watcher or journalist | Where is a crop selling below its support price (MSP)? | Support price watch *(planned)* |
-| Household or consumer group | Which staples are rising unusually fast in my state? | Public price tracker *(planned)* |
-| Data team | Did today's load succeed, and is every day complete? | Status report and checks (built); health dashboard *(planned)* |
+| Farmer or producer group | Which mandi near me paid best for my crop this week? | Gold data ready; dashboard next |
+| Trader or buyer | Is today's price high or low for this time of year? | Needs the historical backfill (downloading) |
+| Household or journalist | Which staples are rising unusually fast? | First weekly trend built (below) |
+| Data team | Did today's load succeed, and is every day complete? | Built: checks, reconciliation, job alerts |
 
 ## Project status
 
 | Phase | What | Status |
 | --- | --- | --- |
-| 1. Extraction | Download 10 years of daily prices from data.gov.in, provably complete | Built; 10-year backfill running |
-| 1. Automation (laptop) | Nightly download and upload via Windows Task Scheduler, with logs and a status report | Built |
-| 2. Upload | Finished days sent to a Databricks volume, each verified | Built |
-| 2. Bronze | Auto Loader into a Delta table, reconciled against the source | Built and verified on version 1 data; reloading from version 2 |
-| 3. Silver | Types, quality rules, quarantine, de-duplication, standard names | Profiling done; rules next |
-| 4. Gold | Star schema; daily, weekly and monthly summaries; price signals | *(planned)* |
-| 5. Governance | Access by layer, documentation, lineage | *(planned)* |
-| 6. Orchestration and CI/CD | Databricks job for bronze to gold; tests and deployment from GitHub | Tests in CI *(planned)* |
-| 7. Reporting | Dashboards, Power BI report, public price tracker | *(planned)* |
-
-## Architecture
-
-<!-- TODO: add docs/architecture.png (exported from the build plan diagram) -->
-
-```
-data.gov.in API
-      |   (only reachable from a network in India)
-      v
-Laptop: backfill_history.py  ---- nightly, Windows Task Scheduler ----
-      |   one request per state; checks every day is complete
-      v
-data/raw/mandi_v2/arrival_date=YYYY-MM-DD/commodity=ALL/state_*.json.gz
-      |
-      v
-upload_to_databricks.py  (finished days only, each verified)
-      |
-      v
-Databricks volume: /Volumes/mandi_dev/bronze/raw_files/mandi_v2/
-      |   Auto Loader (incremental, checkpointed)
-      v
-bronze.mandi_prices_raw  -->  silver (planned)  -->  gold (planned)  -->  dashboards (planned)
-```
-
-Why the extraction runs on a laptop: data.gov.in refused connections from Google Colab
-and from Databricks Free Edition (tested), so the download must run from an Indian
-network. See [decision 001](docs/decisions.md).
+| Extraction | Multi-year history of daily prices, provably complete, nightly | ✅ Built · backfill running |
+| Upload | Finished days to a Databricks volume, each verified | ✅ Built |
+| Bronze | Auto Loader into Delta, reconciled per file | ✅ Verified |
+| Silver | Types, quality rules, quarantine, de-duplication, flags | ✅ Verified |
+| Gold | Star schema, market-day fact, weekly and monthly prices | ✅ Verified |
+| Orchestration | Databricks job bronze → silver → gold, daily, alerts | ✅ Running daily at 07:00 IST |
+| Recent days | Provisional upload so gold reaches yesterday | 🔜 Next |
+| Reporting | Power BI report, public price tracker | Planned |
+| CI | Tests on every push (GitHub Actions) | Planned |
 
 ## The data
 
 | | |
 | --- | --- |
-| Dataset | *Variety-wise Daily Market Prices Data of Commodity*, Department of Agriculture and Farmers Welfare (AGMARKNET), via data.gov.in |
+| Dataset | *Variety-wise Daily Market Prices Data of Commodity* (AGMARKNET), via data.gov.in |
 | Fields | State, District, Market, Commodity, Commodity code, Variety, Grade, Arrival date, Min, Max and Modal price (Rs per quintal) |
-| Grain | One price report per market, commodity, variety, grade and day. Some markets report several times a day |
-| Volume | About 11,000 to 25,000 rows a day; 10 years is about 45 to 50 million rows |
-| Size | About 23 bytes per row compressed on disk; about 1.1 to 1.8 GB for 10 years |
-| Scope | All commodities, all states, 23 Oct 2016 to yesterday |
-
-<!-- TODO: add a data dictionary for silver and gold tables (docs/data_dictionary.md) -->
+| Grain | One price report per market, crop, variety, grade and day; some markets report several times a day |
+| Coverage | Every state; thousands of markets and hundreds of crops |
+| History | A rolling multi-year window up to yesterday, set by one command-line option |
+| Storage | Raw answers kept unchanged, gzip-compressed (about 10x smaller than plain JSON) |
 
 ## How the pipeline works
 
-### 1. Extraction ([`mandi_pipeline/`](mandi_pipeline), [`backfill_history.py`](backfill_history.py))
-- Each day is downloaded **one state per request**, up to 4 at a time, with no paging.
-- Before downloading, each day is **checked first**: if the files on disk already match
-  the API's current total, it is skipped; only missing, partial or changed days are
-  downloaded again.
-- Recent days (30 days) are refreshed at most once every 20 hours to catch late uploads.
-- Raw API answers are saved unchanged, gzip-compressed.
+### 1. Extraction (laptop, nightly at 21:00) · [`mandi_pipeline/`](mandi_pipeline), [`backfill_history.py`](backfill_history.py)
+- **Why a laptop:** data.gov.in refuses connections from cloud servers (tested from
+  Google Colab and Databricks), so the download runs from a network in India.
+- Each day is downloaded **one state per request**, 4 at a time. No paging: paging
+  silently swapped real rows for duplicates (see [incident](docs/incidents/2026-10-23-pagination-overlap.md)).
+- A day is marked complete only if **the states add up to the day's own total and no
+  row appears twice**.
+- **Check before download:** a day already complete on disk costs one small request;
+  restarts never re-download finished days.
+- The last **30 days are refreshed** (at most every 20 hours), because mandis keep
+  uploading late: Tamil Nadu's 1 October grew 2.6% over three weeks.
+- Raw answers are saved unchanged, gzip-compressed.
 
-### 2. Upload ([`upload_to_databricks.py`](upload_to_databricks.py))
-Finished days only; `_DONE` uploaded last; sizes compared after upload; `_UPLOADED`
-marker written only when verified.
+### 2. Upload · [`upload_to_databricks.py`](upload_to_databricks.py)
+Finished days only, newest first; every file's size verified in the volume; a day's
+`_DONE` marker uploaded last so a half-uploaded day is never treated as complete.
 
-### 3. Bronze (Databricks notebook)
-<!-- TODO: add the notebook to the repository (notebooks/10_bronze_mandi_prices) -->
-Auto Loader reads only new files (checkpoint), keeps every value as text plus the
-original record JSON, and adds lineage columns (source file, load time).
+### 3. Bronze · [`notebooks/10_bronze_mandi_prices.py`](notebooks/10_bronze_mandi_prices.py)
+- **Auto Loader** loads only files it hasn't seen (checkpoint), so reruns never duplicate.
+- Every value kept **as text plus the original record JSON**: a change in the source's
+  types can't break the load, and the raw record is always provable.
+- Lineage columns: source file, file time, load time.
+- **Reconciliation:** each file's rows must equal the API's total for that state, or the run fails.
 
-### 4. Silver *(planned)*
-<!-- TODO: types, quality rules, quarantine, de-duplication, name standardisation, late corrections -->
+### 4. Silver · [`notebooks/20_silver_mandi_prices.py`](notebooks/20_silver_mandi_prices.py)
 
-### 5. Gold *(planned)*
-<!-- TODO: star schema; daily market prices; weekly and monthly summaries; price signals -->
+| Step | What |
+| --- | --- |
+| Types | Dates as `dd/MM/yyyy`, prices as decimals (`try_cast`, so one bad value can't stop the run) |
+| Standard names | State spellings mapped through a reference table (`Keralam` → `Kerala`, `Chattisgarh` → `Chhattisgarh`) |
+| Quality rules | Failing rows go to **quarantine** with the reason, never silently dropped |
+| Copies after cleaning | Reports identical once spaces are trimmed are kept once |
+| Unit flag | A market's whole month for a crop 10x off the typical market |
+| Outlier flag | One price 10x off its own market's usual price |
+| **Reconciliation** | bronze = silver + quarantine + copies removed, or the run fails |
 
-### 6. Orchestration and CI/CD *(planned)*
-<!-- TODO: Databricks job, alerts, GitHub Actions running the tests -->
+Each run appends its counts to `ops.silver_quality_log`, so quality is tracked over time.
 
-### 7. Reporting *(planned)*
-<!-- TODO: dashboards, Power BI report, public page link -->
+### 5. Gold · [`notebooks/30_gold_mandi_prices.py`](notebooks/30_gold_mandi_prices.py)
 
-## Data quality and reliability
+A **star schema** for Power BI:
 
-- **A day is complete only if two independent checks pass:** the states add up to the
-  day's own total, and no row appears twice. Each check alone was fooled once in testing.
-- **Reconciliation in bronze:** loaded rows compared with the source's totals.
-- **Idempotent and resumable:** every step can be stopped and rerun without duplicates.
-- **Fail fast** on a refused API key; **retries** for server errors; **waits** for rate
-  limits and internet outages.
-- **Secrets** never in code or logs; setup scripts validate each secret before saving.
+| Table | Grain |
+| --- | --- |
+| `dim_market` | market (state, district, market) |
+| `dim_commodity` | crop |
+| `dim_date` | calendar day, covering the full history |
+| `fact_market_day_price` | day × market × crop × variety × grade |
+| `agg_price_weekly` / `agg_price_monthly` | period × crop × state, plus **All India** |
 
-<!-- TODO: silver quality rules and their results (docs/data_quality.md) -->
+- Outliers are left out of prices but **counted**; unit-flagged series stay for their own
+  market's trend and are left out of comparisons across markets.
+- State and national prices are **medians** of market prices, so one bad market can't move them.
+- Keys are `xxhash64` hashes of the names: the same on every rebuild.
+- **Checks:** every silver report in the fact table, no key clashes, no duplicate grain,
+  every fact linked to its dimensions. Any failure stops the run.
+
+### 6. Orchestration · [`jobs/mandi_daily.yml`](jobs/mandi_daily.yml)
+A Databricks job runs **bronze → silver → gold** daily at 07:00 IST on serverless
+compute, fetching the notebooks from this repository on every run. Each task runs only if
+the previous one succeeded, retries once after 5 minutes, and failures email an alert.
+
+## What the data revealed
+
+Findings from the first verification runs (late August to September 2026 data).
+
+**1. Paging an unstable API loses data silently.** In the first download, 94 of 228 days
+had real rows replaced by duplicates, and **every day's row count still matched**. Found
+by profiling, proved by re-downloading, fixed by downloading state by state.
+[Incident write-up](docs/incidents/2026-10-23-pagination-overlap.md)
+
+**2. 2,830 "duplicates" were a trailing space.** Silver found copies that the downloader's
+byte-level check didn't. Every pair differed only by a space in the market name
+(`"APMC Kolhapur"` and `"APMC Kolhapur "`). 37 Maharashtra and Telangana markets are
+published under both names; counting both would double their weight in every average.
+
+**3. "Rs per quintal" isn't always per quintal.** The first outlier rule flagged 2,361
+rows; measuring them disproved the obvious theory (rare crops: only 6%) and showed the
+same markets flagged **every day**. Multiplying back revealed the real units:
+
+| Market and crop | Price entered | Actual unit |
+| --- | --- | --- |
+| Pune markets: spinach, coriander, mint | Rs 3 to 9 | per bunch |
+| Mapusa (Goa): coconut, pineapple | Rs 40, Rs 22 | per piece |
+| Patti APMC (Punjab): tomato, potato | Rs 0.05 to 0.14 | not plausible in any unit → quarantined |
+
+So one flag became two with different business meanings: **unit-suspect series** (valid
+for their own trend, not for comparison) and **one-off outliers** (excluded). Outlier
+flags fell from 2,361 to 45. [Details](docs/data_quality.md)
+
+**4. First trend: All India wholesale prices, late Aug to Sep 2026** (median of about
+1,000 markets each week)
+
+| Crop | Week of 31 Aug | Week of 14 Sep | |
+| --- | --- | --- | --- |
+| Onion | Rs 4,400/quintal (Rs 44/kg) | Rs 4,800 (Rs 48/kg) | +9% in two weeks |
+| Tomato | Rs 2,400 | Rs 2,500 | +4% |
+| Potato | Rs 1,200 | Rs 1,200 | stable |
+
+Wholesale, not retail. The full history will show whether this is the usual seasonal rise.
+
+## Reliability: how every number is proved
+
+| Stage | Check | On failure |
+| --- | --- | --- |
+| Download | States add up to the day's total **and** no duplicate rows | Day not marked complete; retried next run |
+| Upload | File sizes verified; completion marker last | Day not marked uploaded |
+| Bronze | Rows per file = API total for that state | Run fails |
+| Silver | bronze = silver + quarantine + copies removed | Run fails |
+| Gold | All silver reports in fact; keys unique; grain unique; dimensions linked | Run fails |
+| Job | Each layer runs only if the previous passed | Email alert; dashboard keeps yesterday's correct data |
+
+Every step is **idempotent** (safe to rerun) and **resumable**. 26 automated tests
+reproduce failures met against the real API.
 
 ## Engineering challenges solved
 
 | Challenge | What happened | Fix | Write-up |
 | --- | --- | --- | --- |
 | API ignored Python | Every Python request timed out; browsers worked | Browser-style User-Agent naming the project | [incident](docs/incidents/2026-10-22-datagov-python-timeouts.md) |
-| Cloud servers blocked | Colab and Databricks could not reach data.gov.in | Extract on a laptop in India, upload to Databricks | [decision 001](docs/decisions.md) |
-| Wrong secret saved | The Databricks token was saved as the data.gov.in key | Setup scripts validate each secret's format | [incident](docs/incidents/2026-10-23-wrong-secret-saved.md) |
-| **Silent data loss from paging** | Row counts matched, yet 94 of 228 days had duplicates replacing real rows | State-by-state download, two completeness checks | [incident](docs/incidents/2026-10-23-pagination-overlap.md) |
-| Empty "successful" answers | Two states returned "ok" with 0 rows | Sum check catches it; targeted retry | same incident |
+| Cloud blocked | Colab and Databricks couldn't reach data.gov.in | Extract in India, upload to Databricks | [decision 001](docs/decisions.md) |
+| Silent loss from paging | Counts matched; duplicates replaced real rows on 94 days | State-by-state download, two checks | [incident](docs/incidents/2026-10-23-pagination-overlap.md) |
+| Empty "ok" answers | Two states returned 0 rows with status ok | Sum check catches it; targeted retry | same incident |
+| Slow and stuck requests | One page took 12.5 minutes; internet drops | Total time limit per request; waits out outages | [`api.py`](mandi_pipeline/api.py) |
+| Wrong secret saved | Databricks token saved as the API key | Setup scripts validate each secret | [incident](docs/incidents/2026-10-23-wrong-secret-saved.md) |
+| Restarts re-downloaded | Stopping meant starting again | Check before download against the API total | [decision 006](docs/decisions.md) |
+| Mixed units in one column | Per-bunch prices looked like outliers | Series-level unit flag | [data quality](docs/data_quality.md) |
+
+## Concepts, tech stack and operations
+
+### Tech stack
+
+| Area | Tools |
+| --- | --- |
+| Extraction | Python 3.12, `requests`, thread pool for parallel requests, gzip |
+| Laptop automation | Windows Task Scheduler, PowerShell |
+| Platform | Databricks Free Edition: Unity Catalog, volumes, Auto Loader, Delta Lake, serverless compute, Jobs |
+| Transformation | Spark SQL, PySpark |
+| Code and tests | Git, GitHub, pytest, Databricks Git folders |
+| Reporting | Power BI *(next)* |
+
+### Concepts applied
+
+| Area | Concepts |
+| --- | --- |
+| Architecture | Medallion (bronze, silver, gold), lakehouse, separation of extraction and processing |
+| Ingestion | Incremental loading, checkpoints, schema-on-read, raw data kept unchanged, late-arriving data window |
+| Data quality | Profiling before rules, quarantine with reasons, reconciliation, robust outlier detection (median), reference tables for names |
+| Modelling | Grain decisions, star schema, hash keys, pre-aggregated tables, `GROUPING SETS` for state and national totals |
+| Performance | Liquid clustering, compressed raw files, full rebuild now with incremental as a measured next step |
+| Reliability | Idempotency, retries with backoff, rate-limit handling, timeouts, fail fast, file locks, completion markers |
+| Security | Secrets outside code, least-privilege tokens, key redaction in logs, rotation after exposure, public-repo hygiene |
+| Engineering practice | Decision log, incident write-ups, tests reproducing real failures, Git workflow without force-pushing |
+
+### Operations: what runs where
+
+| When | Where | What |
+| --- | --- | --- |
+| 21:00 daily | Laptop (Task Scheduler) | Download missing and recent days, upload finished days, log to `logs/` |
+| Any time | Laptop | `status.ps1`: progress, gaps, failed days, last run result |
+| 07:00 daily | Databricks job `mandi_daily` | Bronze → silver → gold with checks |
+| On failure | Email | Which task failed; repair from the failed task |
 
 ## Key design decisions
 
-Full reasoning, with alternatives considered, in [`docs/decisions.md`](docs/decisions.md).
+Full reasoning and alternatives in [`docs/decisions.md`](docs/decisions.md).
 
 1. Extract from a computer in India, not the cloud
 2. Browser-style User-Agent that names the project
-3. 10 years of history, stored as compressed raw pages
+3. Multi-year history, stored as compressed raw files
 4. One-time backfill plus a rolling daily update
 5. Download one state per request, not in pages
 6. A day is complete only when two independent checks pass
+7. Two price flags: unit-suspect series and one-off outliers
+8. Gold as a star schema; national prices as medians of market prices
 
-## Results and insights
+## Screenshots
 
-*(planned)*
-
-<!-- TODO: screenshots of dashboards; link to the public price tracker; 3 to 5 headline
-insights from the data (e.g. price spread between nearby mandis, seasonal patterns,
-below-MSP frequency) -->
+| | |
+| --- | --- |
+| **Daily job: bronze → silver → gold** | ![Job run](docs/images/job_run.png) |
+| **Unity Catalog: catalog, schemas, tables** | ![Unity Catalog](docs/images/unity_catalog.png) |
+| **Silver reconciliation** | ![Silver reconciliation](docs/images/silver_reconciliation.png) |
+| **Unit-suspect series** (per bunch, per piece) | ![Unit-suspect series](docs/images/silver_unit_suspect.png) |
+| **Gold checks** | ![Gold checks](docs/images/gold_checks.png) |
+| **All India weekly prices** | ![Weekly prices](docs/images/gold_weekly_prices.png) |
+| **Laptop status report** | ![Status report](docs/images/status_report.png) |
 
 ## Repository structure
 
 ```
-mandi_pipeline/          core extraction code: api.py (requests), download.py (a day's logic)
-tests/                   automated tests (pytest)
-tools/                   one-off diagnostics: compare_download.py, test_user_agent.py, pull_mandi_sample.py
+mandi_pipeline/            extraction code: api.py (requests, retries), download.py (one day)
+backfill_history.py        download command (backfill and daily)
+upload_to_databricks.py    upload finished days to the Databricks volume
+daily_run.ps1              nightly run: download, then upload, with logs
+setup_scheduled_task.ps1   one-time: save the API key, create the nightly task
+setup_databricks_token.ps1 one-time: save and test the Databricks token
+status.ps1 / status.py     progress, gaps, failures, last run
+notebooks/                 Databricks: 10 bronze, 20 silver, 30 gold
+jobs/                      Databricks job definition (YAML) and notes
+tests/                     pytest: 26 tests
+tools/                     diagnostics: compare downloads, test User-Agent, pull a sample
 docs/
-  decisions.md           design decisions and alternatives
-  incidents/             what went wrong, root cause, fix, lessons
-backfill_history.py      download command (backfill and daily)
-upload_to_databricks.py  upload of finished days to the Databricks volume
-daily_run.ps1            nightly run: download, then upload, with logs
-setup_scheduled_task.ps1 one-time: save the API key, create the nightly task
-setup_databricks_token.ps1  one-time: save and test the Databricks token
-status.ps1 / status.py   progress, gaps, failures, last run
-requirements.txt         Python packages
+  decisions.md             design decisions and alternatives
+  data_quality.md          profiling results and quality rules
+  design_faq.md            every why, why not and when, in Q&A form
+  incidents/               what went wrong, root cause, fix, lessons
+  images/                  architecture and screenshots
 ```
-<!-- TODO: notebooks/ (Databricks), dashboards/, site/ (public page) -->
 
 ## How to run it
 
-### Prerequisites
-- Windows with Python 3.12+, Git, and the Databricks CLI
-- A data.gov.in account and API key
-- A Databricks workspace (Free Edition works) with a catalog `mandi_dev`, schemas
-  `bronze`, `silver`, `gold`, `ops`, and volumes `bronze.raw_files` and `bronze.checkpoints`
+**Prerequisites:** Windows with Python 3.12+, Git and the Databricks CLI; a data.gov.in API
+key; a Databricks workspace (Free Edition works) with catalog `mandi_dev`, schemas
+`bronze`, `silver`, `gold`, `ops`, and volumes `bronze.raw_files` and `bronze.checkpoints`.
 
-### Setup (once)
+**Laptop, once:**
 ```powershell
 python -m pip install -r requirements.txt
 powershell -ExecutionPolicy Bypass -File .\setup_databricks_token.ps1   # Databricks token, tested
-powershell -ExecutionPolicy Bypass -File .\setup_scheduled_task.ps1     # data.gov.in key + nightly task
+powershell -ExecutionPolicy Bypass -File .\setup_scheduled_task.ps1     # API key + nightly task
 ```
 
-### Daily operation
-- Runs automatically every night at 21:00, or at next login if the laptop was off.
-- Check progress: `powershell -ExecutionPolicy Bypass -File .\status.ps1`
-- Start now: `Start-ScheduledTask -TaskName 'Mandi Price Intelligence - daily run'`
+**Databricks, once:** create a Git folder from this repository, then create the job from
+[`jobs/mandi_daily.yml`](jobs/README.md).
 
-<!-- TODO: Databricks steps (bronze notebook, job) once orchestration is built -->
+**Daily:** automatic. Check the laptop with `.\status.ps1`; check Databricks in the job's run history.
 
-## Tests
-
-```powershell
-python -m pytest -v
-```
-26 tests, each reproducing a failure met against the real API: browser User-Agent,
-refused key, rate limits, internet outages, slow downloads, key redaction, empty
-answers, unknown state names, duplicate rows, partly written files, late uploads, and
-resuming without re-downloading.
-
-<!-- TODO: GitHub Actions badge once CI runs the tests -->
-
-## Tech stack
-
-| Area | Tools |
-| --- | --- |
-| Extraction | Python (requests), concurrent requests, gzip |
-| Scheduling (laptop) | Windows Task Scheduler, PowerShell |
-| Platform | Databricks Free Edition: Unity Catalog, volumes, Auto Loader, Delta Lake, serverless |
-| Testing and version control | pytest, Git, GitHub |
-| Reporting | Databricks dashboards, Power BI *(planned)* |
+**Tests:** `python -m pytest -v`
 
 ## Roadmap
 
 - [x] Extraction with completeness checks, retries and resume
-- [x] Nightly automation, status report, incident and decision docs
-- [x] Upload with verification; bronze with Auto Loader and reconciliation
-- [ ] 10-year backfill complete (running)
-- [ ] Silver: types, quality rules, quarantine, de-duplication, standard names
-- [ ] Gold: star schema, weekly and monthly summaries, price signals
-- [ ] Databricks job with alerts; provisional upload of recent days
-- [ ] Dashboards, Power BI report, public price tracker
+- [x] Nightly laptop automation, status report
+- [x] Bronze with Auto Loader and reconciliation
+- [x] Silver: quality rules, quarantine, de-duplication, unit and outlier flags
+- [x] Gold: star schema, market-day fact, weekly and monthly prices
+- [x] Daily Databricks job with alerts
+- [ ] Recent days as provisional data, so gold reaches yesterday
+- [ ] Historical backfill complete
+- [ ] Power BI report and public price tracker
+- [ ] Price signals: best nearby mandi, unusual rises, prices below MSP
 - [ ] CI: tests on every push
 
 ## Lessons learned
 
-- **Matching counts don't prove completeness.** Check content too: duplicates exposed
-  rows that a count check could never see.
+- **Matching counts don't prove completeness.** Duplicates exposed missing rows that a
+  count check could never see.
 - **Never trust "status: ok".** Check that the parts add up to the whole.
-- **Test a theory before acting on it.** The first comparison found no problem; only a
-  day the profile flagged proved it.
-- **Check before you download.** Comparing what's on disk with the source makes
-  restarts cheap and catches late changes.
-- **Fix the process, not the symptom.** Repeated mistakes became validation in the
-  setup scripts.
+- **Measure before changing a rule.** The obvious explanation for the outliers was wrong;
+  the measurement found mixed units.
+- **Two checks can disagree and both be right.** Byte-level and business-level duplicates
+  answer different questions; the gap was worth investigating.
+- **Flag, don't invent.** Per-bunch prices can't be converted without knowing a bunch's
+  weight, so they are labelled, not "fixed".
+- **Fix the process, not the symptom.** Repeated mistakes became validation in scripts.
 
-<!-- TODO: add lessons from silver, gold and reporting -->
+## Data source
 
-## Data source and licence
-
-Data: *Variety-wise Daily Market Prices Data of Commodity*, Directorate of Marketing and
+*Variety-wise Daily Market Prices Data of Commodity*, Directorate of Marketing and
 Inspection, Department of Agriculture and Farmers Welfare, Government of India, published
 on the [Open Government Data Platform India](https://data.gov.in) (sourced from AGMARKNET).
 Prices are as reported by mandis and are not trading advice.
 
-<!-- TODO: confirm the dataset's licence on its data.gov.in page and name it here -->
-
-Author: Vikash Mishra
+Author: **Vikash Mishra** · [GitHub](https://github.com/vm8181)
