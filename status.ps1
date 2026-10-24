@@ -28,6 +28,7 @@ foreach ($TaskName in $Tasks) {
         267009   { "running now" }
         267011   { "has never run" }
         3221225786 { "stopped before finishing (window closed or laptop shut down); the next run continues" }
+        2147946720 { "a start was skipped because the previous run was still going" }
         default  { "code $($info.LastTaskResult)" }
     }
     Write-Host ("  State:     {0}" -f $task.State)

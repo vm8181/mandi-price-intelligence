@@ -25,6 +25,8 @@ Options
     --limit 50000      row limit per request; must exceed any state's rows in a day
     --oldest-first     work forwards in time instead of newest first
     --count-only       only report each day's total; download nothing
+    --max-hours 20     stop after this long; the next run carries on. Keeps a long backfill
+                       from blocking the next night's run, which refreshes recent days first
 """
 import argparse
 import csv
@@ -71,6 +73,11 @@ def needs_download(folder: Path, day: date, now: datetime) -> bool:
         if now - last < timedelta(hours=REFRESH_HOURS):
             return False
     return True
+
+
+def time_is_up(started: float, max_hours, now: float) -> bool:
+    """True once a run has used its time allowance (None means no limit)."""
+    return max_hours is not None and now - started >= max_hours * 3600
 
 
 def acquire_lock(path: Path):
@@ -142,6 +149,7 @@ def main() -> None:
     p.add_argument("--timeout", type=int, default=45, help="seconds of silence before a request fails")
     p.add_argument("--oldest-first", action="store_true")
     p.add_argument("--count-only", action="store_true")
+    p.add_argument("--max-hours", type=float, help="stop after this many hours; the next run continues")
     args, _ = p.parse_known_args()
 
     start, end = resolve_range(args)
@@ -173,6 +181,10 @@ def main() -> None:
 
     started, failures, total_rows = time.time(), [], 0
     for i, (d, c) in enumerate(todo, 1):
+        if time_is_up(started, args.max_hours, time.time()):
+            print(f"\nTime limit of {args.max_hours:g} h reached after {i - 1:,} day(s); "
+                  f"{len(todo) - i + 1:,} left for the next run.")
+            break
         label = f"{d:%d-%m-%Y} {c}"
         try:
             if args.count_only:

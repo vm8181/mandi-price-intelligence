@@ -5,7 +5,7 @@ Run from the project folder:   python -m pytest -v
 """
 from datetime import date, datetime, timedelta
 
-from backfill_history import REFRESH_HOURS, needs_download
+from backfill_history import REFRESH_HOURS, needs_download, time_is_up
 
 NOW = datetime(2026, 10, 23, 23, 40)
 DAY = date(2026, 10, 20)
@@ -41,3 +41,10 @@ def test_incomplete_or_failed_day_is_retried(tmp_path):
 def test_unreadable_marker_means_refresh(tmp_path):
     (tmp_path / "_REFRESHED").write_text("not a date")
     assert needs_download(tmp_path, DAY, NOW)
+
+
+def test_time_limit():
+    """A long backfill stops before the next night's run, which refreshes recent days first."""
+    assert not time_is_up(0, None, 10 ** 9)          # no limit
+    assert not time_is_up(0, 20, 19.9 * 3600)
+    assert time_is_up(0, 20, 20 * 3600)

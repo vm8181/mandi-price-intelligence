@@ -374,6 +374,12 @@ or `REPLACE WHERE` instead of rebuilding everything), Delta Change Data Feed so 
 recomputes only affected days, and SCD Type 2 in `dim_market` to record market renames.
 These are the planned next step once full rebuilds become slow.
 
+**Why does each download run stop after 20 hours?**
+The backfill takes days, and while one run is going the next night's run can't start, so
+recent days would stop being refreshed. Runs go newest day first, so each night's run
+refreshes the last 30 days first, continues the backfill, and stops by 17:00; the next
+run picks up where it stopped.
+
 **Why is upload a separate scheduled task?**
 During the backfill the download ran for days, and the upload step after it never started:
 119 finished days sat on the laptop. Uploading every 2 hours on its own schedule means
@@ -464,7 +470,7 @@ The repository is public; personal addresses in public files attract spam scrape
 ## Testing
 
 **What do the tests cover?**
-34 tests, each reproducing a failure met against the real API: the User-Agent, refused
+35 tests, each reproducing a failure met against the real API: the User-Agent, refused
 keys, rate limits, internet outages, slow downloads, key redaction, empty answers, unknown
 state names, duplicates, partly written files, late uploads, restarting without re-downloading,
 and which recent-day versions are uploaded (never a day being rewritten, never the same version twice).

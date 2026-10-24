@@ -219,7 +219,7 @@ Wholesale, not retail. The full history will show whether this is the usual seas
 | Gold | All silver reports in fact; keys unique; grain unique; dimensions linked | Run fails |
 | Job | Each layer runs only if the previous passed | Email alert; dashboard keeps yesterday's correct data |
 
-Every step is **idempotent** (safe to rerun) and **resumable**. 34 automated tests
+Every step is **idempotent** (safe to rerun) and **resumable**. 35 automated tests
 reproduce failures met against the real API.
 
 ## Engineering challenges solved
@@ -311,7 +311,7 @@ setup_databricks_token.ps1 one-time: save and test the Databricks token
 status.ps1 / status.py     progress, gaps, failures, last run
 notebooks/                 Databricks: 10 bronze, 20 silver, 30 gold
 jobs/                      Databricks job definition (YAML) and notes
-tests/                     pytest: 34 tests
+tests/                     pytest: 35 tests
 tools/                     diagnostics: compare downloads, test User-Agent, pull a sample
 docs/
   decisions.md             design decisions and alternatives

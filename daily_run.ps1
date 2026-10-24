@@ -78,7 +78,9 @@ if ($Step -in "All", "Download") {
         Write-Log "STOPPED: DATAGOV_API_KEY is not set. Run setup_scheduled_task.ps1 to save it."
         exit 1
     }
-    $download = Invoke-Step "Download" @("backfill_history.py", "--last-years", "10", "--all-commodities")
+    # --max-hours 20: a run started at 21:00 stops by 17:00, so the next night's run starts on
+    # time and refreshes recent days first; the backfill carries on from where it stopped.
+    $download = Invoke-Step "Download" @("backfill_history.py", "--last-years", "10", "--all-commodities", "--max-hours", "20")
 }
 
 if ($Step -in "All", "Upload") {
