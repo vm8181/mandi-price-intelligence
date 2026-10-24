@@ -26,9 +26,44 @@ cashew at Rs 8,400/kg and coriander leaves at Rs 3,500/kg, which are almost cert
 entry errors, while cardamom at Rs 3,500/kg is realistic. A single limit for all crops
 cannot separate these.
 
-**Rule:** a price is flagged `is_price_outlier` when the modal price is more than 10
-times above or below **that crop's median for that month**. Flagged rows stay in silver
-(nothing is lost) and gold leaves them out of averages.
+**First rule (replaced):** flag a price more than 10 times above or below the crop's
+national median for the month. On version 2 data (25 Aug to 24 Sep) it flagged 2,361
+rows. Measuring them showed the rule was catching something else:
+
+- **Thin references were not the cause.** 94% of flags (2,218) were crops sold in 10+
+  markets, where the median is reliable; only 143 were crops in fewer than 10 markets.
+- **The flags were systematic, not one-offs.** The top 30 market-crop series were flagged
+  on *every* day they reported. Ratio times median gives the price actually entered,
+  which reveals the unit: Mapusa coconut about Rs 40 (per nut), Pune coriander, spinach
+  and mint about Rs 8 (per bunch), Diglipur lemon and Mapusa pineapple Rs 7 to 35 (per
+  piece). Patti APMC (Punjab) reports every crop at under Rs 2 per quintal.
+- **The majority can be the one in the wrong unit.** Gazipur's "Cock" at about Rs 9,500
+  per quintal (Rs 95/kg) is realistic; most other markets report it per bird, so the
+  national median itself (Rs 230) is not per quintal.
+
+**Finding:** the source column is labelled "Rs per quintal", but some markets fill it per
+piece, per bunch or per kg. These are unit mismatches, not outliers, and they need
+different handling.
+
+**Current rules (two flags, both keep the row):**
+
+| Flag | Level | Rule | How gold uses it |
+| --- | --- | --- | --- |
+| `is_unit_suspect` | Whole market-crop-month series | Series median more than 10x off the typical market's level (median of market medians, so each market counts once); only when 3+ markets sell the crop | Excluded from comparisons across markets; kept for that market's own trend (it is consistent in its own unit) |
+| `is_price_outlier` | Single report | More than 10x off its own market's median that month; only when that series has 5+ reports | Excluded everywhere |
+
+`level_ratio` (series median divided by the typical level) is stored on every row so the
+size of the difference is visible.
+
+**Why not convert per-bunch or per-piece prices to per quintal?** The weight of a bunch
+or a coconut isn't known and varies by market; converting would invent numbers.
+
+<!-- TODO: after the next silver run, record the new counts for both flags here -->
+<!-- TODO: crops where most markets use another unit (e.g. poultry per bird) may need a
+     reference table of expected units per commodity -->
+<!-- TODO: Patti APMC: inspect the actual values; consider quarantining the market -->
+
+Flagged rows stay in silver (nothing is lost).
 
 ## Duplicates and the grain of the data
 

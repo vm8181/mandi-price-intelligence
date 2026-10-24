@@ -10,7 +10,8 @@
 # MAGIC | Types | Dates parsed as day/month/year; prices as decimals | Bronze keeps text; `01/10/2026` is ambiguous unless the format is stated |
 # MAGIC | Standard names | One name per state, via a reference table | The source uses "Kerala" and "Keralam", "Pondicherry", "Chattisgarh" |
 # MAGIC | Quality rules | Rows breaking a rule go to quarantine, with the reason | Bad rows are kept and visible, never silently dropped |
-# MAGIC | Outlier flag | Prices more than 10x above or below the crop's monthly median | E.g. cherry at Rs 16.5 lakh per quintal; kept, but flagged so gold can exclude them from averages |
+# MAGIC | Unit flag | A market's whole monthly series for a crop more than 10x off the typical market | Some markets fill "Rs per quintal" per piece, bunch or kg (Pune leafy vegetables per bunch, Mapusa coconut per nut). Fine for that market's own trend, not for comparing markets |
+# MAGIC | Outlier flag | One price more than 10x off its own market's usual price that month | A one-off entry error; kept, but flagged so gold leaves it out |
 # MAGIC | Copies after cleaning | Rows identical once spaces are trimmed are kept once | Some Maharashtra and Telangana markets are published twice, as "APMC Kolhapur" and "APMC Kolhapur " (see data_quality.md) |
 # MAGIC | Grain | One row per price **report** | Some markets genuinely report several prices a day; gold summarises per market-day |
 # MAGIC | Reconciliation | bronze = silver + quarantine + copies removed | Every bronze row is accounted for |
@@ -99,11 +100,19 @@ WITH typed AS (
   FROM {C}.bronze.mandi_prices_raw b
   LEFT JOIN {C}.silver.ref_state_alias a ON trim(b.State) = a.state_raw
 ),
-monthly_median AS (                                -- each crop's typical price that month
-  SELECT commodity, date_trunc('MONTH', arrival_date) AS month,
-         percentile_approx(modal_price, 0.5)       AS median_modal
+series AS (                                        -- one market's price level for one crop in one month
+  SELECT state, market, commodity, date_trunc('MONTH', arrival_date) AS month,
+         percentile_approx(modal_price, 0.5)       AS series_median,
+         COUNT(*)                                  AS series_reports
   FROM typed
-  WHERE modal_price > 0
+  WHERE modal_price > 0 AND arrival_date IS NOT NULL
+  GROUP BY ALL
+),
+crop_level AS (                                    -- the typical market's level: each market counts once
+  SELECT commodity, month,
+         percentile_approx(series_median, 0.5)     AS crop_median,
+         COUNT(*)                                  AS crop_markets
+  FROM series
   GROUP BY ALL
 )
 SELECT t.*,
@@ -119,11 +128,24 @@ SELECT t.*,
     CASE WHEN t.state IS NULL OR t.market IS NULL OR t.market = ''
               OR t.commodity IS NULL                           THEN 'key field missing' END
   )                                                            AS quality_issues,   -- '' means the row passed
-  coalesce(t.modal_price > 10 * m.median_modal
-           OR t.modal_price < m.median_modal / 10, false)      AS is_price_outlier
+  -- How far this market's level is from the typical market's (1 = typical).
+  round(CAST(s.series_median AS DOUBLE) / CAST(c.crop_median AS DOUBLE), 4) AS level_ratio,
+  -- Whole series 10x off the typical market: likely priced per piece, bunch or kg, or a
+  -- different product. Needs 3+ markets: with 2 we can't tell which one is right.
+  coalesce(c.crop_markets >= 3
+           AND (s.series_median > 10 * c.crop_median
+                OR s.series_median < c.crop_median / 10), false) AS is_unit_suspect,
+  -- One price 10x off its own market's usual price that month: a one-off error.
+  -- Needs 5+ reports so the market's usual price is meaningful.
+  coalesce(s.series_reports >= 5
+           AND (t.modal_price > 10 * s.series_median
+                OR t.modal_price < s.series_median / 10), false) AS is_price_outlier
 FROM typed t
-LEFT JOIN monthly_median m
-  ON t.commodity = m.commodity AND date_trunc('MONTH', t.arrival_date) = m.month
+LEFT JOIN series s
+  ON  t.state = s.state AND t.market = s.market AND t.commodity = s.commodity
+  AND date_trunc('MONTH', t.arrival_date) = s.month
+LEFT JOIN crop_level c
+  ON t.commodity = c.commodity AND date_trunc('MONTH', t.arrival_date) = c.month
 """)
 
 # COMMAND ----------
@@ -144,7 +166,8 @@ CLUSTER BY (arrival_date, commodity)
 COMMENT 'One row per mandi price report: typed, standard state names, quality-checked. Rs per quintal.'
 AS
 SELECT report_id, arrival_date, state, state_raw, district, market, commodity, commodity_code,
-       variety, grade, min_price, max_price, modal_price, is_price_outlier, source_file, ingested_at
+       variety, grade, min_price, max_price, modal_price,
+       is_price_outlier, is_unit_suspect, level_ratio, source_file, ingested_at
 FROM (
   SELECT *,
     sha2(concat_ws('|', arrival_date, state_raw, district, market, commodity, variety, grade,
@@ -185,7 +208,8 @@ SELECT
   (SELECT COUNT(*) FROM {C}.silver.mandi_prices_quarantine)                 AS quarantined_rows,
   (SELECT COUNT(*) FROM silver_candidates WHERE quality_issues = '')
     - (SELECT COUNT(*) FROM {C}.silver.mandi_prices)                        AS exact_copies_removed,
-  (SELECT COUNT(*) FROM {C}.silver.mandi_prices WHERE is_price_outlier)     AS outlier_rows
+  (SELECT COUNT(*) FROM {C}.silver.mandi_prices WHERE is_price_outlier)     AS outlier_rows,
+  (SELECT COUNT(*) FROM {C}.silver.mandi_prices WHERE is_unit_suspect)      AS unit_suspect_rows
 """).first()
 
 print(counts.asDict())
@@ -200,10 +224,15 @@ CREATE TABLE IF NOT EXISTS {C}.ops.silver_quality_log (
   exact_copies_removed BIGINT, outlier_rows BIGINT
 ) COMMENT 'One row per silver run: how many rows passed, failed, were de-duplicated or flagged'
 """)
+# Added later: older runs keep NULL here (they didn't measure it), new runs fill it.
+if "unit_suspect_rows" not in spark.table(f"{C}.ops.silver_quality_log").columns:
+    spark.sql(f"ALTER TABLE {C}.ops.silver_quality_log ADD COLUMNS (unit_suspect_rows BIGINT)")
 spark.sql(f"""
-INSERT INTO {C}.ops.silver_quality_log VALUES (current_timestamp(),
+INSERT INTO {C}.ops.silver_quality_log
+  (run_at, bronze_rows, silver_rows, quarantined_rows, exact_copies_removed, outlier_rows, unit_suspect_rows)
+VALUES (current_timestamp(),
   {counts.bronze_rows}, {counts.silver_rows}, {counts.quarantined_rows},
-  {counts.exact_copies_removed}, {counts.outlier_rows})
+  {counts.exact_copies_removed}, {counts.outlier_rows}, {counts.unit_suspect_rows})
 """)
 
 # COMMAND ----------
@@ -224,12 +253,35 @@ ORDER BY rows DESC
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Most extreme flagged prices (for review)
+# MAGIC ### Series in a different unit (for review)
+# MAGIC Whole market-crop series far from the typical market. A ratio near 0.005 usually means priced
+# MAGIC per piece or bunch; near 0.01, per kg. Usable for that market's own trend, not for comparing markets.
 
 # COMMAND ----------
 
 display(spark.sql(f"""
-SELECT arrival_date, state, market, commodity, variety, modal_price
+SELECT state, market, commodity,
+       COUNT(*)                    AS rows,
+       COUNT(DISTINCT arrival_date) AS days,
+       percentile_approx(modal_price, 0.5) AS median_modal,
+       round(avg(level_ratio), 4)  AS level_ratio
+FROM {C}.silver.mandi_prices
+WHERE is_unit_suspect
+GROUP BY ALL
+ORDER BY rows DESC
+LIMIT 30
+"""))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### One-off outliers (for review)
+# MAGIC Prices more than 10x away from their own market's usual price that month.
+
+# COMMAND ----------
+
+display(spark.sql(f"""
+SELECT arrival_date, state, market, commodity, variety, modal_price, level_ratio
 FROM {C}.silver.mandi_prices
 WHERE is_price_outlier
 ORDER BY modal_price DESC
