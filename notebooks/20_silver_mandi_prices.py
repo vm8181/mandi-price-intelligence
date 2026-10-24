@@ -11,7 +11,7 @@
 # MAGIC | Standard names | One name per state, via a reference table | The source uses "Kerala" and "Keralam", "Pondicherry", "Chattisgarh" |
 # MAGIC | Quality rules | Rows breaking a rule go to quarantine, with the reason | Bad rows are kept and visible, never silently dropped |
 # MAGIC | Outlier flag | Prices more than 10x above or below the crop's monthly median | E.g. cherry at Rs 16.5 lakh per quintal; kept, but flagged so gold can exclude them from averages |
-# MAGIC | Exact copies | Identical rows kept once | Defensive: version 2 downloads have none |
+# MAGIC | Copies after cleaning | Rows identical once spaces are trimmed are kept once | Some Maharashtra and Telangana markets are published twice, as "APMC Kolhapur" and "APMC Kolhapur " (see data_quality.md) |
 # MAGIC | Grain | One row per price **report** | Some markets genuinely report several prices a day; gold summarises per market-day |
 # MAGIC | Reconciliation | bronze = silver + quarantine + copies removed | Every bronze row is accounted for |
 # MAGIC
@@ -129,7 +129,10 @@ LEFT JOIN monthly_median m
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Silver table: rows that passed, exact copies kept once
+# MAGIC ### Silver table: rows that passed, copies after cleaning kept once
+# MAGIC Names are already trimmed in `silver_candidates`, so a report published under both
+# MAGIC "APMC Kolhapur" and "APMC Kolhapur " counts once. The column `exact_copies_removed` in
+# MAGIC `ops.silver_quality_log` keeps its name so earlier runs stay comparable; it counts copies after cleaning.
 # MAGIC **Liquid clustering** on date and commodity: queries filtering by them read only the data they need.
 # MAGIC It replaces hand-picked partitions and can be changed later without rewriting the table.
 
@@ -170,7 +173,7 @@ WHERE quality_issues <> ''
 
 # MAGIC %md
 # MAGIC ### Reconcile and log: every bronze row is accounted for
-# MAGIC bronze = silver + quarantine + exact copies removed. If not, the run fails loudly.
+# MAGIC bronze = silver + quarantine + copies removed (after cleaning). If not, the run fails loudly.
 # MAGIC Each run's numbers are appended to `ops.silver_quality_log`, so quality can be tracked over time.
 
 # COMMAND ----------

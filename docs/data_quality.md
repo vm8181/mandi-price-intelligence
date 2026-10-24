@@ -48,6 +48,35 @@ appearing more than once:
 `report_id`. Gold summarises to one row per market per day (lowest minimum, highest
 maximum, average modal, number of reports).
 
+### Version 2: copies that only appear after cleaning (25 Aug to 24 Sep 2026)
+
+The downloader found no byte-identical records in any day, yet silver removed 2,830
+copies. Every one of the 2,830 pairs differs **only in the market name: a trailing
+space** (`"APMC Kolhapur"` and `"APMC Kolhapur "`). Measured across all spaced names:
+
+| | Markets | Rows under the spaced name | With an identical twin under the plain name | Alone |
+| --- | --- | --- | --- | --- |
+| All spaced names (265 Maharashtra, 5 Telangana) | 270 | 36,627 | 2,830 | 33,797 |
+| Of which also published under the plain name | 37 | 3,633 | 2,830 | 803 |
+
+- **233 markets** (e.g. APMC Mumbai, APMC Pune) are always published with the space and
+  never twinned: untidy text on genuine reports. Trimming just gives them a clean name.
+- **37 markets** (e.g. APMC Kolhapur, APMC Jalgaon, Vanasthalipuram RBZ) are published
+  under **both** names, and 78% of the spaced rows have an identical twin: the same
+  market registered twice in the source. Keeping both would count the market twice and
+  double its weight in averages, so silver keeps each report once.
+- The twins add up to exactly 2,830, the number silver removed: nothing else is hidden
+  in that count.
+
+**Two checks, two questions.** The downloader asks "did the download go wrong?" (byte
+copies, e.g. paging overlap). Silver asks "is this the same price report?" (copies after
+cleaning). Bronze keeps the original text, so the raw source can always be proved and
+silver rebuilt if this rule changes.
+
+**Known limitation:** in the 37 double-registered markets, a report published under both
+names *with different prices* stays as two reports. Gold's market-day summary treats
+them as two reports of the same market, which is accurate to the source.
+
 ## Names
 
 - **States:** the source uses "Kerala" and "Keralam" (82 and 198 of 228 days),
