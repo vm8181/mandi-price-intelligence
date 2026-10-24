@@ -93,8 +93,10 @@ def acquire_lock(path: Path):
             import fcntl
             fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
-        sys.exit("Another download is already running (for example the scheduled task). "
-                 "This run has stopped without changing anything.")
+        # Not an error: the other run is doing this work. Exit 0 so the task isn't marked failed.
+        print("Another download is already running (for example the scheduled task). "
+              "This run has stopped without changing anything.")
+        sys.exit(0)
     return fh
 
 
