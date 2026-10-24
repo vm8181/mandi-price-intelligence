@@ -2,18 +2,18 @@ flowchart TB
   subgraph SRC["Source"]
     API["data.gov.in API<br/>AGMARKNET daily prices<br/><i>reachable only from India</i>"]
   end
-  subgraph LAP["Laptop in India · Windows Task Scheduler 21:00"]
+  subgraph LAP["Laptop in India · Windows Task Scheduler"]
     direction LR
-    DL["backfill_history.py<br/>1 request per state, 4 in parallel<br/>2 completeness checks"]
-    RAW[("Raw files<br/>state_*.json.gz<br/>~23 bytes/row")]
-    UP["upload_to_databricks.py<br/>finished days, size-verified"]
+    DL["Download · nightly 21:00, max 20 h<br/>1 request per state, 4 in parallel<br/>2 completeness checks<br/>last 30 days re-checked"]
+    RAW[("Raw files<br/>state_*.json.gz")]
+    UP["Upload · every 2 hours<br/>final days once<br/>recent days when changed<br/>size-verified"]
   end
   subgraph DBX["Databricks Free Edition · Unity Catalog mandi_dev · Job mandi_daily 07:00"]
     direction LR
-    VOL[("Volume<br/>bronze.raw_files")]
-    BR["Bronze<br/>Auto Loader → Delta<br/>all text + record JSON<br/>reconciled per file"]
-    SI["Silver<br/>types · standard names<br/>quarantine · copies removed<br/>unit and outlier flags"]
-    GO["Gold<br/>star schema<br/>market-day fact<br/>weekly / monthly medians"]
+    VOL[("Volume<br/>final: mandi_v2<br/>provisional: mandi_v2_provisional")]
+    BR["Bronze<br/>Auto Loader → Delta<br/>final + provisional tables<br/>reconciled per file"]
+    SI["Silver<br/>final day, else latest<br/>complete provisional version<br/>quality rules · flags"]
+    GO["Gold<br/>star schema<br/>market-day fact · data_status<br/>weekly / monthly medians"]
   end
   subgraph OUT["Consumers"]
     BI["Power BI · dashboards<br/>public price tracker"]

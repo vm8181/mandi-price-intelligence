@@ -71,7 +71,7 @@ found, silently loses rows when paged.
 | Silver | Types, quality rules, quarantine, de-duplication, flags | ✅ Verified |
 | Gold | Star schema, market-day fact, weekly and monthly prices | ✅ Verified |
 | Orchestration | Databricks job bronze → silver → gold, daily, alerts | ✅ Running daily at 07:00 IST |
-| Recent days | Shown as provisional until final, so gold reaches yesterday | ✅ Built · first run pending |
+| Recent days | Shown as provisional until final, so gold reaches yesterday | ✅ Verified |
 | Reporting | Power BI report, public price tracker | Planned |
 | CI | Tests on every push (GitHub Actions) | Planned |
 
@@ -197,16 +197,19 @@ spaces went from 0% in May to 5.8% in August, and copies after cleaning jumped a
 times in September. Trimming in silver kept each market's history continuous; without it,
 "APMC Mumbai" would have become a new market mid-year. [Details](docs/data_quality.md)
 
-**5. First trend: All India wholesale prices, late Aug to Sep 2026** (median of about
-1,000 markets each week)
+**5. First trend: All India wholesale prices, September to October 2026** (weekly median
+of about 800 to 1,100 markets; weeks from 25 September are provisional)
 
-| Crop | Week of 31 Aug | Week of 14 Sep | |
-| --- | --- | --- | --- |
-| Onion | Rs 4,400/quintal (Rs 44/kg) | Rs 4,800 (Rs 48/kg) | +9% in two weeks |
-| Tomato | Rs 2,400 | Rs 2,500 | +4% |
-| Potato | Rs 1,200 | Rs 1,200 | stable |
+| Crop | Week of 31 Aug | Peak | Week of 12 Oct | |
+| --- | --- | --- | --- | --- |
+| Tomato | Rs 2,400/quintal | Rs 3,000 (weeks of 28 Sep and 5 Oct) | Rs 2,600 | +25% in a month, then easing |
+| Onion | Rs 4,400 | Rs 4,800 (mid-September) | Rs 4,500 | Peaked, then down 6% |
+| Potato | Rs 1,200 | stable | Rs 1,140 | Flat |
 
-Wholesale, not retail. The full history will show whether this is the usual seasonal rise.
+The latest week also shows late data at work: about 805 markets had reported onion,
+against about 950 in a normal week, because reports are still arriving. That is why recent
+weeks are labelled provisional. Prices are wholesale, not retail; the full history will
+show whether these moves are the usual seasonal pattern.
 
 ## Reliability: how every number is proved
 
