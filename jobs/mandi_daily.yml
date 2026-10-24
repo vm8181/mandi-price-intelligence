@@ -1,0 +1,59 @@
+# Databricks job: bronze -> silver -> gold, daily at 07:00 IST.
+# Exported from the Databricks UI (View as code) on 24 Oct 2026.
+# The alert email is a variable so no personal address is stored in this public repo.
+# How to recreate the job: see jobs/README.md.
+
+resources:
+  jobs:
+    mandi_daily:
+      name: mandi_daily
+      email_notifications:
+        on_failure:
+          - ${var.alert_email}          # failures only: a daily success email becomes noise
+      schedule:
+        quartz_cron_expression: 54 0 7 * * ?   # 07:00:54 every day (Databricks adds the seconds)
+        timezone_id: Asia/Calcutta
+        pause_status: UNPAUSED
+      tasks:
+        - task_key: bronze
+          notebook_task:
+            notebook_path: notebooks/10_bronze_mandi_prices
+            source: GIT                  # code fetched from GitHub on every run
+          max_retries: 1                 # covers temporary failures; check failures won't pass on retry
+          min_retry_interval_millis: 300000
+          disable_auto_optimization: true   # no extra hidden retries: predictable behaviour
+          environment_key: Default
+        - task_key: silver
+          depends_on:
+            - task_key: bronze           # runs only if bronze succeeded
+          notebook_task:
+            notebook_path: notebooks/20_silver_mandi_prices
+            source: GIT
+          max_retries: 1
+          min_retry_interval_millis: 300000
+          disable_auto_optimization: true
+          environment_key: Default
+        - task_key: gold
+          depends_on:
+            - task_key: silver           # runs only if silver succeeded
+          notebook_task:
+            notebook_path: notebooks/30_gold_mandi_prices
+            source: GIT
+          max_retries: 1
+          min_retry_interval_millis: 300000
+          disable_auto_optimization: true
+          environment_key: Default
+      git_source:
+        git_url: https://github.com/vm8181/mandi-price-intelligence
+        git_provider: gitHub
+        git_branch: main
+      queue:
+        enabled: true                    # a run started while another is going waits, not skipped
+      parameters:
+        - name: catalog
+          default: mandi_dev             # mandi_prod later: same code, one value changes
+      environments:
+        - environment_key: Default
+          spec:
+            environment_version: "6"
+      performance_target: PERFORMANCE_OPTIMIZED   # faster start; use STANDARD where compute is billed
