@@ -26,7 +26,13 @@ from datetime import date, timedelta
 
 # --------------------------------------------------------------------------- basics
 def _local(spark):
-    return spark.conf.get("mandi.local", "false") == "true"
+    """True only inside the local test, which sets this Spark conf. Databricks serverless refuses to
+    read a conf it doesn't know, even with a default (CONFIG_NOT_AVAILABLE), so a refusal means
+    "not the local test"."""
+    try:
+        return spark.conf.get("mandi.local", "false") == "true"
+    except Exception:
+        return False
 
 
 def fingerprint(*parts):
