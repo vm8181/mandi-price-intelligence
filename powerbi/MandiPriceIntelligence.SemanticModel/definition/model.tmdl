@@ -1,0 +1,29 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	discourageImplicitMeasures
+	sourceQueryCulture: en-US
+	valueFilterBehavior: independent
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+annotation PBI_ProTooling = ["DevMode","MCP-PBIModeling"]
+
+annotation PBI_QueryOrder = ["DatabricksHost","DatabricksHttpPath","Catalog","FactMonths","MandiTable","Date","Commodity","Market","State","Market Day Price","Weekly Price","Monthly Price","Quality Log"]
+
+ref table _Measures
+ref table Date
+ref table Commodity
+ref table Market
+ref table State
+ref table 'Market Day Price'
+ref table 'Weekly Price'
+ref table 'Monthly Price'
+ref table 'Quality Log'
+ref table Period
+
+ref cultureInfo en-US
+

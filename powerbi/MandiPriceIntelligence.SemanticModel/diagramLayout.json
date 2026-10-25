@@ -1,0 +1,152 @@
+{
+  "version": "1.1.0",
+  "diagrams": [
+    {
+      "ordinal": 0,
+      "scrollPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 1010.6076089904905,
+            "y": 356.30888764218753
+          },
+          "nodeIndex": "_Measures",
+          "nodeLineageTag": "d364db31-305e-5bbd-a3eb-7cbf72ee1b27",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 585.950267977346,
+            "y": -50
+          },
+          "nodeIndex": "Commodity",
+          "nodeLineageTag": "cb9dc104-a7a6-5501-ae3d-dd4e8c2b768f",
+          "size": {
+            "height": 152,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 337.06912171142847,
+            "y": 154.840866165433
+          },
+          "nodeIndex": "Date",
+          "nodeLineageTag": "0ad9675a-24d1-55ca-b4e6-0bd3ac96a6a8",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 50,
+            "y": 485.04681061477436
+          },
+          "nodeIndex": "Market",
+          "nodeLineageTag": "bf97b4dd-c5a6-53ca-a0b5-ee85251db958",
+          "size": {
+            "height": 176,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 50.062976715475088,
+            "y": 95.960909103138647
+          },
+          "nodeIndex": "Market Day Price",
+          "nodeLineageTag": "e9b1b447-f926-5aa6-b650-776d24913901",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 577.71866164708752,
+            "y": 662.617775284375
+          },
+          "nodeIndex": "Monthly Price",
+          "nodeLineageTag": "a84c1eab-7ab1-5e55-864e-f70abf800cca",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1294.6076089904905,
+            "y": 442.30888764218753
+          },
+          "nodeIndex": "Period",
+          "nodeLineageTag": "6ddc9fda-95f3-54c4-91b5-9a8ed423b6a1",
+          "size": {
+            "height": 128,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1578.6076089904905,
+            "y": 356.30888764218753
+          },
+          "nodeIndex": "Quality Log",
+          "nodeLineageTag": "b2a538ef-4690-5d4c-9b8f-e842f8697725",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 516.08980268633036,
+            "y": 507.63917296170018
+          },
+          "nodeIndex": "State",
+          "nodeLineageTag": "d926e31d-cd96-5118-83df-9b6add79ee6f",
+          "size": {
+            "height": 104,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 776.60760899049058,
+            "y": 154.93333709771264
+          },
+          "nodeIndex": "Weekly Price",
+          "nodeLineageTag": "113fa9d1-7d80-54d0-8df4-bdaa5c17801e",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        }
+      ],
+      "name": "All tables",
+      "zoomValue": 100,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    }
+  ],
+  "selectedDiagram": "All tables",
+  "defaultDiagram": "All tables"
+}

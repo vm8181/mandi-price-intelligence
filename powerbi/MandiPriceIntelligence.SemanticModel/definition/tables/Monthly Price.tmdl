@@ -1,0 +1,130 @@
+/// Monthly price by crop and state, plus All India (full history).
+table 'Monthly Price'
+	lineageTag: a84c1eab-7ab1-5e55-864e-f70abf800cca
+
+	/// First day of the month.
+	column 'Month Start'
+		dataType: dateTime
+		formatString: mmm yyyy
+		lineageTag: e5d81f5c-b9f6-5a04-9361-563687aed18f
+		summarizeBy: none
+		sourceColumn: Month Start
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	/// Crop key.
+	column commodity_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 92c78f86-94b2-52e9-b2e1-5f9526df30d7
+		summarizeBy: none
+		sourceColumn: commodity_key
+
+		annotation SummarizationSetBy = Automatic
+
+	/// State, or All India.
+	column State
+		dataType: string
+		lineageTag: 6e922632-af23-5ffa-95e8-e94e3190b4a3
+		summarizeBy: none
+		sourceColumn: State
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Days with prices in the month.
+	column 'Days Covered'
+		dataType: int64
+		formatString: 0
+		lineageTag: 151e209c-77ea-52f9-a6e7-26a049ad9b21
+		summarizeBy: none
+		sourceColumn: Days Covered
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Days in the month that are provisional.
+	column 'Provisional Days'
+		dataType: int64
+		formatString: 0
+		lineageTag: a49ba41d-5399-52b6-96c1-61788d1fb788
+		summarizeBy: none
+		sourceColumn: Provisional Days
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Markets with a price that month.
+	column 'Markets Reporting'
+		dataType: int64
+		formatString: #,0
+		lineageTag: 84f91bf5-24a3-534e-9094-cd263614ad3f
+		summarizeBy: none
+		sourceColumn: Markets Reporting
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Price reports behind the month's figure.
+	column Reports
+		dataType: int64
+		formatString: #,0
+		lineageTag: f7ae9326-a544-5cc0-9943-fe47882eb8e2
+		summarizeBy: none
+		sourceColumn: Reports
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Median of the market prices, Rs per quintal.
+	column 'Median Price'
+		dataType: double
+		formatString: #,0
+		lineageTag: 03772bd5-498f-5276-b39b-dd1623ab7bcf
+		summarizeBy: none
+		sourceColumn: Median Price
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Average of the market prices.
+	column 'Average Price'
+		dataType: double
+		isHidden
+		formatString: #,0
+		lineageTag: 92a94c1b-b55a-5cf9-be46-597f4c77b402
+		summarizeBy: none
+		sourceColumn: Average Price
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Lowest price paid in any market.
+	column 'Lowest Price'
+		dataType: double
+		formatString: #,0
+		lineageTag: bf272b58-da43-55cf-9a2b-ce32438f421e
+		summarizeBy: none
+		sourceColumn: Lowest Price
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Highest price paid in any market.
+	column 'Highest Price'
+		dataType: double
+		formatString: #,0
+		lineageTag: b8ac20e1-1fc7-546c-aba3-deedcd45b640
+		summarizeBy: none
+		sourceColumn: Highest Price
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Monthly Price' = m
+		mode: import
+		source =
+				let
+				    Source = MandiTable("gold", "agg_price_monthly"),
+				    Columns = Table.SelectColumns(Source, {"period_start", "commodity_key", "state", "days_covered", "provisional_days", "markets_reporting", "reports", "median_modal_price", "avg_modal_price", "lowest_price", "highest_price"}),
+				    Typed = Table.TransformColumnTypes(Columns, {{"period_start", type date}, {"commodity_key", Int64.Type}, {"state", type text}, {"days_covered", Int64.Type}, {"provisional_days", Int64.Type}, {"markets_reporting", Int64.Type}, {"reports", Int64.Type}, {"median_modal_price", type number}, {"avg_modal_price", type number}, {"lowest_price", type number}, {"highest_price", type number}}),
+				    Renamed = Table.RenameColumns(Typed, {{"period_start", "Month Start"}, {"state", "State"}, {"days_covered", "Days Covered"}, {"provisional_days", "Provisional Days"}, {"markets_reporting", "Markets Reporting"}, {"reports", "Reports"}, {"median_modal_price", "Median Price"}, {"avg_modal_price", "Average Price"}, {"lowest_price", "Lowest Price"}, {"highest_price", "Highest Price"}})
+				in
+				    Renamed
+
+	annotation PBI_ResultType = Table
+

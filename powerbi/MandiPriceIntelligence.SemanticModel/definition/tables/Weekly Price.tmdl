@@ -1,0 +1,131 @@
+/// Weekly price by crop and state, plus All India (full history).
+/// Median of market prices; series in another unit are left out.
+table 'Weekly Price'
+	lineageTag: 113fa9d1-7d80-54d0-8df4-bdaa5c17801e
+
+	/// Monday of the week.
+	column 'Week Start'
+		dataType: dateTime
+		formatString: dd mmm yyyy
+		lineageTag: aa2dab19-12e9-53e2-b26b-2e5d25184e8b
+		summarizeBy: none
+		sourceColumn: Week Start
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	/// Crop key.
+	column commodity_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: eacc6f5f-e2b2-5f88-8d21-a1e0d0b198c2
+		summarizeBy: none
+		sourceColumn: commodity_key
+
+		annotation SummarizationSetBy = Automatic
+
+	/// State, or All India.
+	column State
+		dataType: string
+		lineageTag: 29a5572b-6a75-5cb3-a65b-c2a4c7136414
+		summarizeBy: none
+		sourceColumn: State
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Days with prices in the week; fewer than 7 means a partial week.
+	column 'Days Covered'
+		dataType: int64
+		formatString: 0
+		lineageTag: 1cb74959-a04e-5bbc-b6c7-de324b1c9837
+		summarizeBy: none
+		sourceColumn: Days Covered
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Days in the week that are provisional and may still change.
+	column 'Provisional Days'
+		dataType: int64
+		formatString: 0
+		lineageTag: e0545b12-4040-5e3d-9115-362fcff4533a
+		summarizeBy: none
+		sourceColumn: Provisional Days
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Markets with a price that week.
+	column 'Markets Reporting'
+		dataType: int64
+		formatString: #,0
+		lineageTag: abc7018c-5dbf-551f-86ef-ed1c4f8114dd
+		summarizeBy: none
+		sourceColumn: Markets Reporting
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Price reports behind the week's figure.
+	column Reports
+		dataType: int64
+		formatString: #,0
+		lineageTag: c0b8e433-9fae-5d73-a1f5-946ae51d36eb
+		summarizeBy: none
+		sourceColumn: Reports
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Median of the market prices, Rs per quintal.
+	column 'Median Price'
+		dataType: double
+		formatString: #,0
+		lineageTag: 2ae06a3f-e572-59e1-b772-08fe2be39122
+		summarizeBy: none
+		sourceColumn: Median Price
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Average of the market prices, Rs per quintal.
+	column 'Average Price'
+		dataType: double
+		isHidden
+		formatString: #,0
+		lineageTag: 438cbc47-40cd-5fbc-9c9f-ddd36c11e27c
+		summarizeBy: none
+		sourceColumn: Average Price
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Lowest price paid in any market.
+	column 'Lowest Price'
+		dataType: double
+		formatString: #,0
+		lineageTag: f89af913-5d95-5de1-ae71-b406c5a59379
+		summarizeBy: none
+		sourceColumn: Lowest Price
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Highest price paid in any market.
+	column 'Highest Price'
+		dataType: double
+		formatString: #,0
+		lineageTag: 67df5ce4-7500-53e6-a855-34bca904a787
+		summarizeBy: none
+		sourceColumn: Highest Price
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Weekly Price' = m
+		mode: import
+		source =
+				let
+				    Source = MandiTable("gold", "agg_price_weekly"),
+				    Columns = Table.SelectColumns(Source, {"period_start", "commodity_key", "state", "days_covered", "provisional_days", "markets_reporting", "reports", "median_modal_price", "avg_modal_price", "lowest_price", "highest_price"}),
+				    Typed = Table.TransformColumnTypes(Columns, {{"period_start", type date}, {"commodity_key", Int64.Type}, {"state", type text}, {"days_covered", Int64.Type}, {"provisional_days", Int64.Type}, {"markets_reporting", Int64.Type}, {"reports", Int64.Type}, {"median_modal_price", type number}, {"avg_modal_price", type number}, {"lowest_price", type number}, {"highest_price", type number}}),
+				    Renamed = Table.RenameColumns(Typed, {{"period_start", "Week Start"}, {"state", "State"}, {"days_covered", "Days Covered"}, {"provisional_days", "Provisional Days"}, {"markets_reporting", "Markets Reporting"}, {"reports", "Reports"}, {"median_modal_price", "Median Price"}, {"avg_modal_price", "Average Price"}, {"lowest_price", "Lowest Price"}, {"highest_price", "Highest Price"}})
+				in
+				    Renamed
+
+	annotation PBI_ResultType = Table
+

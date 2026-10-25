@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "MandiPriceIntelligence"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "b28adbaf-92ed-40f1-845f-efc5f6a7ccec"
+  }
+}

@@ -1,0 +1,125 @@
+/// One row per calendar day, 2016 to 2027. Weeks start on Monday.
+table Date
+	lineageTag: 0ad9675a-24d1-55ca-b4e6-0bd3ac96a6a8
+	dataCategory: Time
+
+	/// Calendar day.
+	column Date
+		dataType: dateTime
+		isKey
+		formatString: dd mmm yyyy
+		lineageTag: f4be1353-2c77-54e4-8331-17de2125133d
+		summarizeBy: none
+		sourceColumn: Date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	/// Calendar year.
+	column Year
+		dataType: int64
+		formatString: 0
+		lineageTag: 578f1823-656f-509f-9edb-5f35bec9bc58
+		summarizeBy: none
+		sourceColumn: Year
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Calendar quarter, 1 to 4.
+	column Quarter
+		dataType: int64
+		formatString: 0
+		lineageTag: a4fb9b94-8ea2-5d5b-a72f-62eeaf3255b3
+		summarizeBy: none
+		sourceColumn: Quarter
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Month number, used to sort month names.
+	column 'Month Number'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: e5fa1fe0-6c30-5406-94eb-9373e13de19e
+		summarizeBy: none
+		sourceColumn: Month Number
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Short month name.
+	column Month
+		dataType: string
+		lineageTag: 1d988536-52e2-5492-99b0-51d78d5bec01
+		summarizeBy: none
+		sourceColumn: Month
+		sortByColumn: 'Month Number'
+
+		annotation SummarizationSetBy = Automatic
+
+	/// First day of the month.
+	column 'Month Start'
+		dataType: dateTime
+		formatString: mmm yyyy
+		lineageTag: cdca8972-37ca-5a70-bb17-9d50ad236b57
+		summarizeBy: none
+		sourceColumn: Month Start
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	/// Monday of the week.
+	column 'Week Start'
+		dataType: dateTime
+		formatString: dd mmm yyyy
+		lineageTag: 58d13557-eebe-56a8-a7ec-5e28ea95b882
+		summarizeBy: none
+		sourceColumn: Week Start
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	/// ISO week number, 1 to 53, used to compare the same week across years.
+	column 'Week of Year'
+		dataType: int64
+		formatString: 0
+		lineageTag: c7e62e9d-473f-551c-beb3-4dc08633708f
+		summarizeBy: none
+		sourceColumn: Week of Year
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Short day name.
+	column Day
+		dataType: string
+		lineageTag: b2fa6203-c478-5585-8042-6871a6c94f11
+		summarizeBy: none
+		sourceColumn: Day
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Saturday or Sunday.
+	column 'Is Weekend'
+		dataType: boolean
+		isHidden
+		lineageTag: 6dae73c6-18f2-5017-bca7-81d429c4fc7e
+		summarizeBy: none
+		sourceColumn: Is Weekend
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Date = m
+		mode: import
+		source =
+				let
+				    Source = MandiTable("gold", "dim_date"),
+				    Columns = Table.SelectColumns(Source, {"date", "year", "quarter", "month", "month_name", "month_start", "week_start", "iso_week", "day_name", "is_weekend"}),
+				    Typed = Table.TransformColumnTypes(Columns, {{"date", type date}, {"year", Int64.Type}, {"quarter", Int64.Type}, {"month", Int64.Type}, {"month_name", type text}, {"month_start", type date}, {"week_start", type date}, {"iso_week", Int64.Type}, {"day_name", type text}, {"is_weekend", type logical}}),
+				    Renamed = Table.RenameColumns(Typed, {{"date", "Date"}, {"year", "Year"}, {"quarter", "Quarter"}, {"month", "Month Number"}, {"month_name", "Month"}, {"month_start", "Month Start"}, {"week_start", "Week Start"}, {"iso_week", "Week of Year"}, {"day_name", "Day"}, {"is_weekend", "Is Weekend"}})
+				in
+				    Renamed
+
+	annotation PBI_ResultType = Table
+

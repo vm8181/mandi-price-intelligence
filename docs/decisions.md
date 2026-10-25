@@ -4,6 +4,64 @@ Each entry records a choice, the options considered, and why. Newest first.
 
 ---
 
+## 010. Silver and gold rebuild only the months that changed
+
+**Date:** 25 Oct 2026
+**In short:** incremental processing by month, driven by Delta's Change Data Feed, with an
+automatic full rebuild whenever the rules change. Proved equal to a full rebuild by a test.
+
+**Problem:** silver and gold were rebuilt from all history every morning. Fine while the
+history was short, but the cost grew with the size of the history, not with what changed:
+as the backfill adds years, every daily run would reprocess all of them to absorb one new day.
+
+**Decision:**
+- Bronze has **Change Data Feed** on. Each silver run reads only bronze's changes since the
+  version it last processed (kept in `ops.pipeline_state`), and turns the changed days into
+  **changed months**.
+- Silver rebuilds those months and swaps each into the table in one Delta transaction
+  (`replaceWhere`). Gold follows: the fact table and monthly prices for those months, and weekly
+  prices for every week touching them. New markets and crops are appended to the dimensions.
+- A **full rebuild** happens automatically on the first run, when silver's rules or the state
+  mapping change (a fingerprint of the rule SQL and mapping rows is compared with the last run's),
+  when gold's logic changes, or when the change feed can't be read. `mode = full` forces one.
+- Every run is logged in `ops.pipeline_runs`: mode, reason, months, rows read and written, seconds.
+
+**Why the month, not the day:** the unit and outlier flags compare a price with its market's
+**monthly** median. One new day can change every flag in its month, so recomputing only the day
+would give a different answer from a full rebuild. The month is the smallest unit that can be
+rebuilt on its own and still give the identical result.
+
+**How it's proved:** `tests/local_incremental_test.py` runs the real notebooks on local Spark:
+a first full build, then new data (days turning final, a new provisional version including an
+incomplete one, a backfilled older month), an incremental run, and a fresh full rebuild of the
+same bronze. All eight output tables match row for row. It also checks that a run with no change
+skips, and that a rules change forces a full rebuild.
+
+**Reconciliation still covers all history:** `ops.silver_month_ledger` keeps one row per month
+(bronze rows used, silver, quarantined, copies removed). Each run checks its own months balance,
+and that the ledger's totals equal the tables' row counts, so untouched months stay accounted for.
+
+**Options considered:**
+- Keep full rebuilds: simplest, but cost grows with history.
+- Row-level `MERGE` on a report key: silver has no natural key that survives a provisional
+  version being replaced, and the monthly flags would still need recomputing for the whole month.
+- Compare bronze with silver on every run to find changes: works, but reads all of bronze daily.
+- Change Data Feed + month replacement (chosen): reads only what changed, and the result is
+  provably identical to a full rebuild.
+
+**Trade-offs:**
+- A changed day costs its whole month. Even so, a daily run touches one or two months against the
+  whole history.
+- Two state tables (`pipeline_state`, `pipeline_runs`) must be kept; they are small and self-describing.
+- Changes made before the feed was switched on aren't recorded; the first run after that is a full
+  rebuild anyway.
+
+**Bug found by the test before release:** gold first stored "processed up to" as a Python datetime.
+Python converts timestamps to the machine's time zone (IST here) while Spark used UTC, which shifted
+the time by 5.5 hours and hid new silver runs. Times are now kept as Spark-formatted text.
+
+---
+
 ## 009. Show recent days as provisional data; upload separately from download
 
 **Date:** 24 Oct 2026

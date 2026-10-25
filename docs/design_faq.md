@@ -6,7 +6,7 @@ layer, in the order the data flows.
 **Contents:** [Project and business](#project-and-business) ·
 [Architecture](#architecture) · [Extraction](#extraction) ·
 [Completeness](#completeness) · [Storage](#storage) · [Databricks platform](#databricks-platform) ·
-[Bronze](#bronze) · [Silver](#silver) · [Gold](#gold) ·
+[Bronze](#bronze) · [Silver](#silver) · [Large data volumes](#large-data-volumes) · [Gold](#gold) ·
 [Recent days](#recent-days-and-late-data) · [Orchestration](#orchestration) · [Git and code](#git-and-code) ·
 [Security](#security) · [Testing](#testing) · [What I'd do next](#what-id-do-next)
 
@@ -262,9 +262,74 @@ units per crop would fix it.
 **How do you prove silver lost nothing?**
 bronze = silver + quarantine + copies removed. If not equal, the run fails. Counts are logged each run in `ops.silver_quality_log`.
 
-**Why rebuild silver in full each run instead of MERGE?**
-Simpler and always consistent at this size (under a minute). The job's run history will
-show when it slows down; that's the measured point to switch to incremental processing.
+**Does silver rebuild everything each run?**
+No, only the months whose bronze data changed (see the next section). A full rebuild happens
+on the first run, when a rule or the state mapping changes, or on request (`mode = full`).
+
+---
+
+## Large data volumes
+
+**How does the pipeline handle growing data?**
+Each layer does work in proportion to **what changed**, not to how much history exists:
+
+| Layer | Technique | Effect |
+| --- | --- | --- |
+| Laptop | Download and upload only missing or changed days | No re-download of history |
+| Bronze | Auto Loader with checkpoints | Loads only files it hasn't seen |
+| Bronze | Change Data Feed | Silver asks "what changed since version N?" instead of reading all of bronze |
+| Bronze, silver, gold | Liquid clustering by date | Reading one month opens only that month's files |
+| Silver, gold | Rebuild only changed months (`replaceWhere`) | A daily run touches one or two months, however long the history |
+| Gold | Weekly and monthly tables, `GROUPING SETS` | Trend queries read aggregates that are tens of times smaller than the daily fact |
+| Power BI | Daily fact limited to the last 15 months; trends from aggregates | The model stays small and quick to refresh as history grows |
+
+**What is Change Data Feed?**
+A Delta Lake option that records, for every write, which rows were inserted, updated or deleted.
+`table_changes` (or `readChangeFeed`) returns those rows between two table versions. It is CDC
+inside the lakehouse: the source API has no change log, but bronze does.
+
+**Why rebuild a whole month when only one day changed?**
+The unit and outlier flags compare a price with its market's monthly median. A new day changes
+that median, so every flag in the month can change. Recomputing just the day would give a
+different answer from a full rebuild; the month is the smallest unit that gives the same answer.
+
+**Why `replaceWhere` and not `MERGE`?**
+A month is replaced whole: delete its old rows, write its new ones, in one transaction. `MERGE`
+matches rows by key, but silver has no key that survives a provisional version being replaced
+(late reports change prices, so a report's hash changes), and deleted reports would need extra
+logic. `replaceWhere` is simpler, and Delta refuses the write if a row falls outside the months.
+
+**How do you know incremental gives the right answer?**
+A test runs the real notebooks twice from the same bronze, once incrementally after new data
+arrived and once as a full rebuild, and compares all eight output tables row by row: identical.
+On Databricks, every run also reconciles its months and the whole history through
+`ops.silver_month_ledger`.
+
+**What if someone changes a quality rule?**
+Old months would still follow the old rule. So silver hashes its rule SQL and the state mapping
+into a fingerprint and compares it with the last run's. A different fingerprint means a full
+rebuild, automatically. Gold does the same for its own logic.
+
+**What if the change feed is lost, or a run fails halfway?**
+- If the feed can't be read for the needed versions, the run falls back to a full rebuild and
+  logs why.
+- State is saved only after a run succeeds, so a failed run is simply redone next time;
+  replacing a month twice gives the same result (idempotent).
+
+**How do you measure the saving?**
+`ops.pipeline_runs` logs every run: full, incremental or skip, the months, rows read and
+written, and seconds. Comparing a full run with daily incremental runs gives the saving, measured.
+
+**Why only 15 months of daily rows in Power BI?**
+The market and state pages use the last 7 or 30 days; trends and seasons use the weekly and
+monthly tables, which hold the full history and are small. Importing every daily row would make
+the model large and slow to refresh for no visual gain. The window is one parameter (`FactMonths`).
+
+**What would you add at much larger scale?**
+- Power BI incremental refresh (`RangeStart`/`RangeEnd`): keep years of daily rows, refresh only
+  the last two months.
+- A composite model: aggregates imported, daily detail queried live from Databricks on demand.
+- Partition pruning tests and file-size tuning, guided by `DESCRIBE DETAIL` and query profiles.
 
 ---
 
@@ -481,13 +546,16 @@ tests are fast, repeatable and need no network.
 
 **How do you test the Spark code?**
 Each notebook checks its own output on every run (reconciliation, key and grain checks)
-and fails if wrong. Unit tests for Spark logic are a next step.
+and fails if wrong. `tests/local_incremental_test.py` runs the real silver and gold notebooks
+on local Spark with synthetic data covering every rule (state aliases, per-bunch series,
+outliers, trailing-space copies, quarantine, provisional versions, a backfilled month), and
+proves an incremental run equals a full rebuild. Delta-only calls (table version, change feed,
+`replaceWhere`) are replaced by simple stand-ins locally; everything else is the same code.
 
 ---
 
 ## What I'd do next
 
-- **Incremental silver** once run times grow with the full history.
 - **Market reference table** for markets published under two names.
 - **Expected units per crop** for poultry and flowers, where most markets don't use quintals.
 - **Power BI report** on gold, and a public price tracker.

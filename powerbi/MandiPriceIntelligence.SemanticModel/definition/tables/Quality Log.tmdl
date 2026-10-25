@@ -1,0 +1,142 @@
+/// One row per silver run: rows used, passed, quarantined, de-duplicated and flagged.
+table 'Quality Log'
+	lineageTag: b2a538ef-4690-5d4c-9b8f-e842f8697725
+
+	/// When the silver run finished, UTC.
+	column 'Run At (UTC)'
+		dataType: dateTime
+		formatString: dd mmm yyyy hh:nn
+		lineageTag: 4d846cba-67ef-5b9f-a756-3acda7ec9ced
+		summarizeBy: none
+		sourceColumn: Run At (UTC)
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Bronze rows used by the run (final days plus chosen provisional versions).
+	column 'Rows Used'
+		dataType: int64
+		formatString: #,0
+		lineageTag: f72f0340-980d-51f3-b255-fa2280f8b44e
+		summarizeBy: none
+		sourceColumn: Rows Used
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Rows that passed every rule.
+	column 'Silver Rows'
+		dataType: int64
+		formatString: #,0
+		lineageTag: 3f2f38be-2ed0-5cae-bb8f-d7549aec0839
+		summarizeBy: none
+		sourceColumn: Silver Rows
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Rows that failed a rule, kept with the reason.
+	column 'Quarantined Rows'
+		dataType: int64
+		formatString: #,0
+		lineageTag: f6d5c2c9-e5e1-56e9-b64c-07cefd248e86
+		summarizeBy: none
+		sourceColumn: Quarantined Rows
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Reports identical once spaces are trimmed, kept once.
+	column 'Copies Removed'
+		dataType: int64
+		formatString: #,0
+		lineageTag: ae10418d-f277-5b71-b4f8-bd8e219833ec
+		summarizeBy: none
+		sourceColumn: Copies Removed
+
+		annotation SummarizationSetBy = Automatic
+
+	/// One-off prices 10x off their market's usual price.
+	column 'Outlier Rows'
+		dataType: int64
+		formatString: #,0
+		lineageTag: a4476b09-accb-5e03-8558-4796f8f435e6
+		summarizeBy: none
+		sourceColumn: Outlier Rows
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Rows in series priced in another unit.
+	column 'Unit Suspect Rows'
+		dataType: int64
+		formatString: #,0
+		lineageTag: 95aade09-6cb7-5464-8fed-d5a0d6f1a389
+		summarizeBy: none
+		sourceColumn: Unit Suspect Rows
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Rows from recent, provisional days.
+	column 'Provisional Rows'
+		dataType: int64
+		formatString: #,0
+		lineageTag: 243e7384-9bd0-57c4-bb30-abccc675fca6
+		summarizeBy: none
+		sourceColumn: Provisional Rows
+
+		annotation SummarizationSetBy = Automatic
+
+	/// When the silver run finished, Indian time.
+	column 'Run At (IST)' = 'Quality Log'[Run At (UTC)] + TIME(5, 30, 0)
+		dataType: dateTime
+		formatString: dd mmm yyyy hh:nn
+		lineageTag: 4e5125b8-d952-5322-a8a4-cd069432b34f
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Share of rows used that went to quarantine.
+	column 'Quarantine Rate' = DIVIDE('Quality Log'[Quarantined Rows], 'Quality Log'[Rows Used])
+		dataType: double
+		formatString: 0.000%
+		lineageTag: 01026290-dccc-5463-bd88-f4c60e73f708
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Share of silver rows in series priced in another unit.
+	column 'Unit Suspect Rate' = DIVIDE('Quality Log'[Unit Suspect Rows], 'Quality Log'[Silver Rows])
+		dataType: double
+		formatString: 0.00%
+		lineageTag: 82d3aed3-3cc7-5dc6-9209-8fdf61cb4ae1
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Share of silver rows flagged as one-off outliers.
+	column 'Outlier Rate' = DIVIDE('Quality Log'[Outlier Rows], 'Quality Log'[Silver Rows])
+		dataType: double
+		formatString: 0.000%
+		lineageTag: 3ae4b487-cdd5-593a-b522-d7ac45180521
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Share of rows used removed as copies after cleaning.
+	column 'Copies Rate' = DIVIDE('Quality Log'[Copies Removed], 'Quality Log'[Rows Used])
+		dataType: double
+		formatString: 0.000%
+		lineageTag: 0eafa592-2c3a-5884-8117-45bed3fd8381
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Quality Log' = m
+		mode: import
+		source =
+				let
+				    Source = MandiTable("ops", "silver_quality_log"),
+				    Columns = Table.SelectColumns(Source, {"run_at", "bronze_rows", "silver_rows", "quarantined_rows", "exact_copies_removed", "outlier_rows", "unit_suspect_rows", "provisional_rows"}),
+				    Typed = Table.TransformColumnTypes(Columns, {{"run_at", type datetime}, {"bronze_rows", Int64.Type}, {"silver_rows", Int64.Type}, {"quarantined_rows", Int64.Type}, {"exact_copies_removed", Int64.Type}, {"outlier_rows", Int64.Type}, {"unit_suspect_rows", Int64.Type}, {"provisional_rows", Int64.Type}}),
+				    Renamed = Table.RenameColumns(Typed, {{"run_at", "Run At (UTC)"}, {"bronze_rows", "Rows Used"}, {"silver_rows", "Silver Rows"}, {"quarantined_rows", "Quarantined Rows"}, {"exact_copies_removed", "Copies Removed"}, {"outlier_rows", "Outlier Rows"}, {"unit_suspect_rows", "Unit Suspect Rows"}, {"provisional_rows", "Provisional Rows"}})
+				in
+				    Renamed
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,847 @@
+/// All measures, grouped in display folders. Prices are wholesale, Rs per quintal (100 kg).
+table _Measures
+	lineageTag: d364db31-305e-5bbd-a3eb-7cbf72ee1b27
+
+	/// Most recent day with prices in the model (yesterday, once the nightly refresh has run).
+	measure 'Latest Data Date' = CALCULATE ( MAX ( 'Market Day Price'[Date] ), REMOVEFILTERS () )
+		formatString: dd mmm yyyy
+		displayFolder: Freshness
+		lineageTag: 07c75ac2-f0b6-5115-8ab1-35f297103f7a
+
+	/// Most recent day that is final. Days after it are provisional: markets are still reporting.
+	measure 'Latest Final Date' = CALCULATE ( MAX ( 'Market Day Price'[Date] ), REMOVEFILTERS (), 'Market Day Price'[Data Status] = "final" )
+		formatString: dd mmm yyyy
+		displayFolder: Freshness
+		lineageTag: 1c0e50a5-10db-569d-9aed-acc6c96b2291
+
+	/// Number of recent days that are provisional.
+	measure 'Provisional Days' = CALCULATE ( DISTINCTCOUNT ( 'Market Day Price'[Date] ), REMOVEFILTERS (), 'Market Day Price'[Data Status] = "provisional" )
+		formatString: 0
+		displayFolder: Freshness
+		lineageTag: 5bde42bb-7965-5710-bb56-1e3cab12d472
+
+	/// Source and freshness line shown at the bottom of every page.
+	measure 'Footer Text' =
+			"Source: data.gov.in (AGMARKNET daily mandi prices)  ·  Data to "
+			    & FORMAT ( [Latest Data Date], "d mmm yyyy" )
+			    & "  ·  Days after "
+			    & FORMAT ( [Latest Final Date], "d mmm" )
+			    & " are provisional and may still change  ·  Wholesale prices, ₹ per quintal (100 kg)"
+		displayFolder: Freshness
+		lineageTag: 79b1477a-eab2-5ea4-847a-2ffc2c3cae97
+
+	/// All India weekly price: the median of market prices for the crop, Rs per quintal. Use with one crop, or with crop on the legend.
+	measure 'National Price' = CALCULATE ( SUM ( 'Weekly Price'[Median Price] ), 'Weekly Price'[State] = "All India", REMOVEFILTERS ( 'State' ) )
+		formatString: ₹#,0
+		displayFolder: National Price
+		lineageTag: cbe28bab-6575-52ec-a7d8-8c21f8703308
+
+	/// Provisional days in the week, for the All India figure.
+	measure 'National Provisional Days' = CALCULATE ( MAX ( 'Weekly Price'[Provisional Days] ), 'Weekly Price'[State] = "All India", REMOVEFILTERS ( 'State' ) )
+		formatString: 0
+		displayFolder: National Price
+		lineageTag: 10e29c73-1f01-5b55-9c07-4f8403319490
+
+	/// All India weekly price for weeks that are final, over the last 12 months (solid line).
+	measure 'Price Final Weeks' =
+			VAR wk = MAX ( 'Weekly Price'[Week Start] )
+			VAR p = [National Price]
+			RETURN
+			    IF ( wk > [Latest Data Date] - 371 && NOT ISBLANK ( p ) && [National Provisional Days] = 0, p )
+		formatString: ₹#,0
+		displayFolder: National Price
+		lineageTag: 53524fbc-295b-508d-beb2-fa39f56bc7d5
+
+	/// All India weekly price for weeks that are still provisional (dashed line). The last final week is included so the two lines join.
+	measure 'Price Provisional Weeks' =
+			VAR wk = MAX ( 'Weekly Price'[Week Start] )
+			VAR p = [National Price]
+			VAR provHere = [National Provisional Days]
+			VAR provNext =
+			    CALCULATE (
+			        MAX ( 'Weekly Price'[Provisional Days] ),
+			        'Weekly Price'[State] = "All India",
+			        REMOVEFILTERS ( 'State' ),
+			        REMOVEFILTERS ( 'Date' ),
+			        REMOVEFILTERS ( 'Weekly Price'[Week Start] ),
+			        'Weekly Price'[Week Start] = wk + 7
+			    )
+			RETURN
+			    IF ( wk > [Latest Data Date] - 371 && NOT ISBLANK ( p ) && ( provHere > 0 || provNext > 0 ), p )
+		formatString: ₹#,0
+		displayFolder: National Price
+		lineageTag: 06b64778-6a6d-5293-9c76-4758e428258c
+
+	/// The week the headline price refers to: the latest week, unless it has fewer than 3 days of prices so far, then the week before.
+	measure 'Headline Week' =
+			VAR latest =
+			    CALCULATE (
+			        MAX ( 'Weekly Price'[Week Start] ),
+			        'Weekly Price'[State] = "All India",
+			        REMOVEFILTERS ( 'State' ),
+			        REMOVEFILTERS ( 'Date' ),
+			        REMOVEFILTERS ( 'Weekly Price'[Week Start] )
+			    )
+			VAR days =
+			    CALCULATE (
+			        MAX ( 'Weekly Price'[Days Covered] ),
+			        'Weekly Price'[State] = "All India",
+			        REMOVEFILTERS ( 'State' ),
+			        REMOVEFILTERS ( 'Date' ),
+			        REMOVEFILTERS ( 'Weekly Price'[Week Start] ),
+			        'Weekly Price'[Week Start] = latest
+			    )
+			RETURN
+			    IF ( days >= 3, latest, latest - 7 )
+		formatString: dd mmm yyyy
+		displayFolder: National Price
+		lineageTag: a1e2cf7d-4305-58f5-945f-da6dafc38305
+
+	/// All India price in the headline week, Rs per quintal.
+	measure 'Headline Price' =
+			VAR w = [Headline Week]
+			RETURN
+			    CALCULATE ( [National Price], REMOVEFILTERS ( 'Date' ), REMOVEFILTERS ( 'Weekly Price'[Week Start] ), 'Weekly Price'[Week Start] = w )
+		formatString: ₹#,0
+		displayFolder: National Price
+		lineageTag: c5b2ec09-e732-5bc2-b04f-92415c79cbbe
+
+	/// Headline price per kilogram (a quintal is 100 kg).
+	measure 'Headline Price per kg' = DIVIDE ( [Headline Price], 100 )
+		formatString: ₹#,0.0
+		displayFolder: National Price
+		lineageTag: efebde5c-0037-5292-8a51-18a66a0da60f
+
+	/// All India price in the week before the headline week.
+	measure 'Price Week Before' =
+			VAR w = [Headline Week] - 7
+			RETURN
+			    CALCULATE ( [National Price], REMOVEFILTERS ( 'Date' ), REMOVEFILTERS ( 'Weekly Price'[Week Start] ), 'Weekly Price'[Week Start] = w )
+		formatString: ₹#,0
+		displayFolder: National Price
+		lineageTag: f9bd8999-359b-5433-bd83-5cebaea23ba4
+
+	/// All India price four weeks before the headline week.
+	measure 'Price 4 Weeks Before' =
+			VAR w = [Headline Week] - 28
+			RETURN
+			    CALCULATE ( [National Price], REMOVEFILTERS ( 'Date' ), REMOVEFILTERS ( 'Weekly Price'[Week Start] ), 'Weekly Price'[Week Start] = w )
+		formatString: ₹#,0
+		displayFolder: National Price
+		lineageTag: 95121aba-52e9-5b2d-be50-64a6470921b8
+
+	/// Change in the All India price from the week before.
+	measure 'Change vs Week Before' = VAR b = [Price Week Before] RETURN IF ( NOT ISBLANK ( b ), DIVIDE ( [Headline Price] - b, b ) )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: National Price
+		lineageTag: 3a1b46fa-f502-59a9-a158-3de49c613d17
+
+	/// Change in the All India price over four weeks.
+	measure 'Change vs 4 Weeks Before' = VAR b = [Price 4 Weeks Before] RETURN IF ( NOT ISBLANK ( b ), DIVIDE ( [Headline Price] - b, b ) )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: National Price
+		lineageTag: 61779927-108f-5ec3-84e1-610601a6b75c
+
+	/// All India price in the same week a year earlier (52 weeks back). Blank until that history is loaded.
+	measure 'Price Same Week Last Year' =
+			VAR w = [Headline Week] - 364
+			RETURN
+			    CALCULATE ( [National Price], REMOVEFILTERS ( 'Date' ), REMOVEFILTERS ( 'Weekly Price'[Week Start] ), 'Weekly Price'[Week Start] = w )
+		formatString: ₹#,0
+		displayFolder: National Price
+		lineageTag: 2668ccfa-e8c9-5eab-b2e7-c772cd774fd2
+
+	/// Change from the same week a year earlier.
+	measure 'Change vs Last Year' = VAR b = [Price Same Week Last Year] RETURN IF ( NOT ISBLANK ( b ), DIVIDE ( [Headline Price] - b, b ) )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: National Price
+		lineageTag: e9ad5773-7d0e-59d7-8a92-07ec3e8ea1a4
+
+	/// Highest All India weekly price in the 12 weeks up to the headline week.
+	measure 'Peak Price 12 Weeks' =
+			VAR w = [Headline Week]
+			RETURN
+			    CALCULATE (
+			        MAXX ( VALUES ( 'Weekly Price'[Week Start] ), [National Price] ),
+			        REMOVEFILTERS ( 'Date' ),
+			        REMOVEFILTERS ( 'Weekly Price'[Week Start] ),
+			        'Weekly Price'[Week Start] > w - 84 && 'Weekly Price'[Week Start] <= w
+			    )
+		formatString: ₹#,0
+		displayFolder: National Price
+		lineageTag: d9f05df4-89e1-540b-90b4-1e2587633ad7
+
+	/// Week of the 12-week high.
+	measure 'Peak Week 12 Weeks' =
+			VAR w = [Headline Week]
+			VAR weeks =
+			    CALCULATETABLE (
+			        ADDCOLUMNS ( VALUES ( 'Weekly Price'[Week Start] ), "@p", [National Price] ),
+			        REMOVEFILTERS ( 'Date' ),
+			        REMOVEFILTERS ( 'Weekly Price'[Week Start] ),
+			        'Weekly Price'[Week Start] > w - 84 && 'Weekly Price'[Week Start] <= w
+			    )
+			RETURN
+			    MAXX ( TOPN ( 1, weeks, [@p], DESC ), 'Weekly Price'[Week Start] )
+		formatString: dd mmm yyyy
+		displayFolder: National Price
+		lineageTag: 463cb07b-86f3-505a-b595-cda599d1f47f
+
+	/// How far the headline price is below its 12-week high (0% means it is at the high).
+	measure 'Below 12 Week Peak' = DIVIDE ( [Headline Price] - [Peak Price 12 Weeks], [Peak Price 12 Weeks] )
+		formatString: 0.0%
+		displayFolder: National Price
+		lineageTag: b1eb3a93-50ff-5421-99db-8ac1e8182416
+
+	/// Markets behind the All India figure in the headline week.
+	measure 'Markets In Headline Week' =
+			VAR w = [Headline Week]
+			RETURN
+			    CALCULATE ( MAX ( 'Weekly Price'[Markets Reporting] ), 'Weekly Price'[State] = "All India", REMOVEFILTERS ( 'State' ), REMOVEFILTERS ( 'Date' ), REMOVEFILTERS ( 'Weekly Price'[Week Start] ), 'Weekly Price'[Week Start] = w )
+		formatString: #,0
+		displayFolder: National Price
+		lineageTag: 43e9d346-6931-5d43-8e35-d3e72bec60d3
+
+	/// Days with prices in the headline week (7 = full week).
+	measure 'Days In Headline Week' =
+			VAR w = [Headline Week]
+			RETURN
+			    CALCULATE ( MAX ( 'Weekly Price'[Days Covered] ), 'Weekly Price'[State] = "All India", REMOVEFILTERS ( 'State' ), REMOVEFILTERS ( 'Date' ), REMOVEFILTERS ( 'Weekly Price'[Week Start] ), 'Weekly Price'[Week Start] = w )
+		formatString: 0
+		displayFolder: National Price
+		lineageTag: 1ec9891c-def3-556a-97ba-48545aedf491
+
+	/// Provisional days in the headline week.
+	measure 'Provisional Days In Headline Week' =
+			VAR w = [Headline Week]
+			RETURN
+			    CALCULATE ( MAX ( 'Weekly Price'[Provisional Days] ), 'Weekly Price'[State] = "All India", REMOVEFILTERS ( 'State' ), REMOVEFILTERS ( 'Date' ), REMOVEFILTERS ( 'Weekly Price'[Week Start] ), 'Weekly Price'[Week Start] = w )
+		formatString: 0
+		displayFolder: National Price
+		lineageTag: eaffb95b-4182-5bb0-9243-016730e11b1c
+
+	/// Four-week change for the movers table: only crops with at least 50 markets in the headline week, so a few markets can't make a crop look volatile.
+	measure 'Mover Change 4 Weeks' = IF ( [Markets In Headline Week] >= 50, [Change vs 4 Weeks Before] )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: National Price
+		lineageTag: 89039ceb-7559-51ae-ba4c-e160dd816b24
+
+	/// Dynamic title for the price trend chart.
+	measure 'Price Pulse Title' =
+			VAR crop = SELECTEDVALUE ( Commodity[Crop] )
+			RETURN
+			    IF ( ISBLANK ( crop ), "All India weekly price", crop & ": All India weekly price, last 12 months" )
+		displayFolder: Narrative
+		lineageTag: 57b8b7c4-d527-5f7b-aa5f-86addd265a33
+
+	/// A sentence that writes itself: the selected crop's price, its weekly change and its distance from the 12-week high.
+	measure 'Crop Summary' =
+			VAR crop = SELECTEDVALUE ( Commodity[Crop] )
+			VAR price = [Headline Price]
+			VAR w = [Headline Week]
+			VAR c = [Change vs Week Before]
+			VAR bp = [Below 12 Week Peak]
+			VAR days = [Days In Headline Week]
+			VAR prov = [Provisional Days In Headline Week]
+			VAR changeText =
+			    IF (
+			        ISBLANK ( c ), "",
+			        IF ( ABS ( c ) < 0.005, ", about the same as the week before",
+			            ", " & IF ( c > 0, "up ", "down " ) & FORMAT ( ABS ( c ), "0%" ) & " on the week before" )
+			    )
+			VAR peakText =
+			    IF (
+			        ISBLANK ( bp ), "",
+			        IF ( bp > -0.005, ". That is its highest in 12 weeks",
+			            ", and " & FORMAT ( ABS ( bp ), "0%" ) & " below its 12-week high of ₹"
+			                & FORMAT ( [Peak Price 12 Weeks], "#,0" ) & " (week of " & FORMAT ( [Peak Week 12 Weeks], "d mmm" ) & ")" )
+			    )
+			VAR partialText = IF ( days < 7, " (" & days & " days of prices so far)", "" )
+			VAR provText = IF ( prov > 0, " These recent figures are provisional: some markets are still reporting.", "" )
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( crop ), "Pick one crop to see what its price is doing.",
+			        ISBLANK ( price ), crop & " has no All India price in recent weeks.",
+			        crop & " is selling at about ₹" & FORMAT ( price, "#,0" ) & " a quintal (₹" & FORMAT ( price / 100, "#,0.0" )
+			            & " a kg) across India's mandis in the week of " & FORMAT ( w, "d mmm" ) & partialText
+			            & changeText & peakText & "." & provText
+			    )
+		displayFolder: Narrative
+		lineageTag: dfd55e93-3db8-519d-ab86-b3b8dae6503d
+
+	/// Which well-traded crop rose and fell most over four weeks.
+	measure 'Movers Summary' =
+			VAR crops =
+			    FILTER (
+			        ADDCOLUMNS ( ALL ( Commodity[Crop] ), "@c", [Mover Change 4 Weeks] ),
+			        NOT ISBLANK ( [@c] )
+			    )
+			VAR up = TOPN ( 1, crops, [@c], DESC )
+			VAR down = TOPN ( 1, crops, [@c], ASC )
+			VAR upName = MAXX ( up, Commodity[Crop] )
+			VAR upVal = MAXX ( up, [@c] )
+			VAR downName = MAXX ( down, Commodity[Crop] )
+			VAR downVal = MAXX ( down, [@c] )
+			RETURN
+			    IF (
+			        COUNTROWS ( crops ) = 0, "Not enough well-traded crops to compare yet.",
+			        "Over four weeks, among crops sold in at least 50 markets, " & upName & " rose most ("
+			            & FORMAT ( upVal, "+0%;-0%" ) & ") and " & downName & " fell most (" & FORMAT ( downVal, "+0%;-0%" ) & ")."
+			    )
+		displayFolder: Narrative
+		lineageTag: d5987916-7103-5076-a574-8095581e4ca0
+
+	/// Days in the selected period (7 by default).
+	measure 'Period Days' = SELECTEDVALUE ( Period[Days], 7 )
+		formatString: 0
+		displayFolder: Markets
+		lineageTag: 22a3c552-c5d4-534a-8517-50a988724f38
+
+	/// Selected period, in words.
+	measure 'Period Label' = LOWER ( SELECTEDVALUE ( Period[Period], "Last 7 days" ) )
+		displayFolder: Markets
+		lineageTag: 82089611-a7de-55c6-aee9-dd95f178c609
+
+	/// Average modal price at a market over the selected period, Rs per quintal. Series priced in another unit and one-off outliers are left out, so markets can be compared.
+	measure 'Market Price' =
+			VAR d = [Latest Data Date]
+			VAR n = [Period Days]
+			RETURN
+			    CALCULATE (
+			        AVERAGE ( 'Market Day Price'[Modal Price] ),
+			        REMOVEFILTERS ( 'Date' ),
+			        'Market Day Price'[Date] > d - n,
+			        'Market Day Price'[Date] <= d,
+			        'Market Day Price'[Is Unit Suspect] = FALSE ()
+			    )
+		formatString: ₹#,0
+		displayFolder: Markets
+		lineageTag: 9e5bca01-52e4-525e-a8c0-072ec13f61a3
+
+	/// Price reports behind the market price in the selected period.
+	measure 'Market Reports' =
+			VAR d = [Latest Data Date]
+			VAR n = [Period Days]
+			RETURN
+			    CALCULATE (
+			        SUM ( 'Market Day Price'[Reports] ),
+			        REMOVEFILTERS ( 'Date' ),
+			        'Market Day Price'[Date] > d - n,
+			        'Market Day Price'[Date] <= d,
+			        'Market Day Price'[Is Unit Suspect] = FALSE ()
+			    )
+		formatString: #,0
+		displayFolder: Markets
+		lineageTag: 0b8fc282-2d77-5c1a-8c48-eb8e9a752f2e
+
+	/// Days in the period on which the market reported the crop.
+	measure 'Market Days Reported' =
+			VAR d = [Latest Data Date]
+			VAR n = [Period Days]
+			RETURN
+			    CALCULATE (
+			        DISTINCTCOUNT ( 'Market Day Price'[Date] ),
+			        REMOVEFILTERS ( 'Date' ),
+			        'Market Day Price'[Date] > d - n,
+			        'Market Day Price'[Date] <= d,
+			        'Market Day Price'[Is Unit Suspect] = FALSE ()
+			    )
+		formatString: 0
+		displayFolder: Markets
+		lineageTag: 461c84a5-7cc9-51ab-97cf-0642e96936db
+
+	/// Markets with a comparable price for the crop in the period.
+	measure 'Markets With Price' = COUNTROWS ( FILTER ( VALUES ( Market[market_key] ), NOT ISBLANK ( [Market Price] ) ) )
+		formatString: #,0
+		displayFolder: Markets
+		lineageTag: 9a6ad621-1cd6-509b-84cc-5ac1d489480d
+
+	/// Median of the market prices in the current selection (state or all India).
+	measure 'Median Market Price' = MEDIANX ( FILTER ( VALUES ( Market[market_key] ), NOT ISBLANK ( [Market Price] ) ), [Market Price] )
+		formatString: ₹#,0
+		displayFolder: Markets
+		lineageTag: ac5063cc-9515-543b-a834-e08d3dd37194
+
+	/// Highest market price in the selection: the best place to sell. Only markets that reported on at least 2 days of the period count, so one odd report can't top the list.
+	measure 'Best Market Price' = MAXX ( FILTER ( VALUES ( Market[market_key] ), [Market Days Reported] >= 2 ), [Market Price] )
+		formatString: ₹#,0
+		displayFolder: Markets
+		lineageTag: 8cc8a6d4-e450-5f90-852c-28e83b3b9bfc
+
+	/// Lowest market price in the selection: the cheapest place to buy. Only markets that reported on at least 2 days count.
+	measure 'Lowest Market Price' = MINX ( FILTER ( VALUES ( Market[market_key] ), [Market Days Reported] >= 2 && NOT ISBLANK ( [Market Price] ) ), [Market Price] )
+		formatString: ₹#,0
+		displayFolder: Markets
+		lineageTag: a7f57fc4-70e8-57ed-8112-47d223209aad
+
+	/// Gap between the dearest and cheapest market in the selection, Rs per quintal.
+	measure 'Price Spread' = [Best Market Price] - [Lowest Market Price]
+		formatString: ₹#,0
+		displayFolder: Markets
+		lineageTag: 8cf7a1f9-25d7-595c-b09b-6b97796c6d51
+
+	/// Median price across all markets in the same state, for comparing one market with its state.
+	measure 'State Median For Market' =
+			VAR s = SELECTEDVALUE ( Market[State] )
+			RETURN
+			    CALCULATE ( [Median Market Price], REMOVEFILTERS ( Market ), Market[State] = s )
+		formatString: ₹#,0
+		displayFolder: Markets
+		lineageTag: b4454bf8-b506-524f-a5ee-d17a52c4954a
+
+	/// How a market's price compares with its state's median.
+	measure 'vs State Median' = VAR m = [State Median For Market] RETURN IF ( NOT ISBLANK ( [Market Price] ), DIVIDE ( [Market Price] - m, m ) )
+		formatString: +0%;-0%;0%
+		displayFolder: Markets
+		lineageTag: 1bc12cdb-a18d-515c-b034-ae53eb2ae66f
+
+	/// Market with the highest price in the selection, among markets that reported on at least 2 days.
+	measure 'Best Market Name' =
+			VAR t =
+			    FILTER (
+			        ADDCOLUMNS ( SUMMARIZE ( Market, Market[Market], Market[District], Market[State] ), "@p", [Market Price], "@d", [Market Days Reported] ),
+			        NOT ISBLANK ( [@p] ) && [@d] >= 2
+			    )
+			RETURN
+			    MAXX ( TOPN ( 1, t, [@p], DESC ), Market[Market] & " (" & Market[District] & ", " & Market[State] & ")" )
+		displayFolder: Markets
+		lineageTag: 71af8aec-3c56-50b8-8e14-0ca6be72c99e
+
+	/// A sentence that writes itself for the market finder.
+	measure 'Finder Summary' =
+			VAR crop = SELECTEDVALUE ( Commodity[Crop] )
+			VAR place = SELECTEDVALUE ( 'State'[State], "India" )
+			VAR n = [Markets With Price]
+			VAR best = [Best Market Price]
+			VAR med = [Median Market Price]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( crop ), "Pick one crop to find where it sells best.",
+			        ISBLANK ( n ) || n = 0, "No comparable " & crop & " prices in " & place & " in the " & [Period Label] & ".",
+			        n & IF ( n = 1, " market", " markets" ) & " in " & place & " reported " & crop & " prices in the " & [Period Label]
+			            & ". The best price was ₹" & FORMAT ( best, "#,0" ) & " a quintal at " & [Best Market Name]
+			            & ", " & FORMAT ( DIVIDE ( best - med, med ), "0%" ) & " above the median of ₹" & FORMAT ( med, "#,0" )
+			            & ". Between the cheapest and dearest market, the gap was ₹" & FORMAT ( [Price Spread], "#,0" ) & " a quintal."
+			    )
+		displayFolder: Markets
+		lineageTag: b6211a80-d67e-57b4-bce2-a7550d97d5d3
+
+	/// Median of market prices in a state over the selected period, Rs per quintal.
+	measure 'State Price' = [Median Market Price]
+		formatString: ₹#,0
+		displayFolder: States
+		lineageTag: 33c1f7c1-998c-5c07-8604-b78e280ba48c
+
+	/// Median of all market prices in India over the selected period.
+	measure 'All India Market Median' = CALCULATE ( [Median Market Price], REMOVEFILTERS ( 'State' ), REMOVEFILTERS ( Market ) )
+		formatString: ₹#,0
+		displayFolder: States
+		lineageTag: 90147769-7ef5-513d-b187-35d7e7efa421
+
+	/// How a state's price compares with the all-India market median.
+	measure 'State vs India' = VAR i = [All India Market Median] RETURN IF ( NOT ISBLANK ( [State Price] ), DIVIDE ( [State Price] - i, i ) )
+		formatString: +0%;-0%;0%
+		displayFolder: States
+		lineageTag: 36791421-bbfb-5fe0-bd94-170fc85a0682
+
+	/// A state's weekly price (median of its markets) for the last 12 weeks, for the heat grid.
+	measure 'State Weekly Price' =
+			VAR wk = MAX ( 'Weekly Price'[Week Start] )
+			RETURN
+			    IF ( wk > [Latest Data Date] - 84, SUM ( 'Weekly Price'[Median Price] ) )
+		formatString: ₹#,0
+		displayFolder: States
+		lineageTag: 1e7c408b-f469-5526-939e-d82c4b01cdcb
+
+	/// Cheapest and dearest state for the selected crop.
+	measure 'States Summary' =
+			VAR crop = SELECTEDVALUE ( Commodity[Crop] )
+			VAR t =
+			    FILTER (
+			        ADDCOLUMNS ( VALUES ( 'State'[State] ), "@p", [State Price], "@n", [Markets With Price] ),
+			        NOT ISBLANK ( [@p] ) && [@n] >= 3
+			    )
+			VAR lo = TOPN ( 1, t, [@p], ASC )
+			VAR hi = TOPN ( 1, t, [@p], DESC )
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( crop ), "Pick one crop to compare states.",
+			        COUNTROWS ( t ) < 2, "Too few states with at least 3 reporting markets to compare " & crop & ".",
+			        crop & " over the " & [Period Label] & ": cheapest in " & MAXX ( lo, 'State'[State] ) & " (₹"
+			            & FORMAT ( MAXX ( lo, [@p] ), "#,0" ) & "), dearest in " & MAXX ( hi, 'State'[State] ) & " (₹"
+			            & FORMAT ( MAXX ( hi, [@p] ), "#,0" ) & "), across " & COUNTROWS ( t )
+			            & " states with at least 3 reporting markets."
+			    )
+		displayFolder: States
+		lineageTag: 785483b9-2ced-510a-bf4d-dbb78220c645
+
+	/// All India weekly price, for comparing the same week across years.
+	measure 'Season Price' = [National Price]
+		formatString: ₹#,0
+		displayFolder: Seasons
+		lineageTag: f6470565-97b2-5981-80a6-0144df067e88
+
+	/// Years of All India weekly prices loaded for the selected crop (weeks divided by 52).
+	measure 'Years Available' =
+			CALCULATE (
+			    DIVIDE ( COUNTROWS ( DISTINCT ( SELECTCOLUMNS ( 'Weekly Price', "@w", 'Weekly Price'[Week Start] ) ) ), 52 ),
+			    'Weekly Price'[State] = "All India",
+			    REMOVEFILTERS ( 'State' ),
+			    REMOVEFILTERS ( 'Date' ),
+			    REMOVEFILTERS ( 'Weekly Price'[Week Start] )
+			)
+		formatString: 0.0
+		displayFolder: Seasons
+		lineageTag: e362eec8-bf6e-5861-883a-efcf65f56b71
+
+	/// First week with an All India price for the selected crop.
+	measure 'History Start' = CALCULATE ( MIN ( 'Weekly Price'[Week Start] ), 'Weekly Price'[State] = "All India", REMOVEFILTERS ( 'State' ), REMOVEFILTERS ( 'Date' ), REMOVEFILTERS ( 'Weekly Price'[Week Start] ) )
+		formatString: dd mmm yyyy
+		displayFolder: Seasons
+		lineageTag: 52281e53-1e17-5207-8657-10fb852900e8
+
+	/// Explains how much history the seasons chart has.
+	measure 'Seasons Summary' =
+			VAR crop = SELECTEDVALUE ( Commodity[Crop] )
+			VAR yrs = [Years Available]
+			VAR ly = [Change vs Last Year]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( crop ), "Pick one crop to compare its seasons.",
+			        crop & " has All India weekly prices from the week of " & FORMAT ( [History Start], "d mmm yyyy" )
+			            & IF ( yrs < 1, " (about " & ROUND ( yrs * 12, 0 ) & " months so far). ",
+			                  " (about " & FORMAT ( yrs, "0.0" ) & " years so far). " )
+			            & IF (
+			                ISBLANK ( ly ),
+			                "Same-week comparisons with last year appear once a full year of history has loaded.",
+			                "This week's price is " & FORMAT ( ABS ( ly ), "0%" ) & IF ( ly >= 0, " higher", " lower" )
+			                    & " than in the same week last year."
+			            )
+			    )
+		displayFolder: Seasons
+		lineageTag: 61a60c7f-ddb5-5957-9ad2-a99a99a76ef8
+
+	/// When the cleaning step (silver) last ran, Indian time.
+	measure 'Last Silver Run' = MAX ( 'Quality Log'[Run At (IST)] )
+		formatString: dd mmm yyyy hh:nn
+		displayFolder: Data Health
+		lineageTag: 57cd6642-9054-5866-9402-77d438f6fdcb
+
+	/// Rows the latest silver run used from bronze.
+	measure 'Latest Rows Used' = VAR r = MAX ( 'Quality Log'[Run At (UTC)] ) RETURN CALCULATE ( SUM ( 'Quality Log'[Rows Used] ), 'Quality Log'[Run At (UTC)] = r )
+		formatString: #,0
+		displayFolder: Data Health
+		lineageTag: eb7c7664-ec43-5791-8e09-733e7c4e581f
+
+	/// Rows that passed every rule in the latest run.
+	measure 'Latest Silver Rows' = VAR r = MAX ( 'Quality Log'[Run At (UTC)] ) RETURN CALCULATE ( SUM ( 'Quality Log'[Silver Rows] ), 'Quality Log'[Run At (UTC)] = r )
+		formatString: #,0
+		displayFolder: Data Health
+		lineageTag: 9d27af16-900a-50f6-bf7e-7dc99b9d7d23
+
+	/// Share of rows quarantined in the latest run.
+	measure 'Latest Quarantine Rate' = VAR r = MAX ( 'Quality Log'[Run At (UTC)] ) RETURN CALCULATE ( MAX ( 'Quality Log'[Quarantine Rate] ), 'Quality Log'[Run At (UTC)] = r )
+		formatString: 0.000%
+		displayFolder: Data Health
+		lineageTag: 16d5aeee-c137-5404-94dd-615728e3852c
+
+	/// Share of rows in series priced in another unit, latest run.
+	measure 'Latest Unit Suspect Rate' = VAR r = MAX ( 'Quality Log'[Run At (UTC)] ) RETURN CALCULATE ( MAX ( 'Quality Log'[Unit Suspect Rate] ), 'Quality Log'[Run At (UTC)] = r )
+		formatString: 0.00%
+		displayFolder: Data Health
+		lineageTag: 9c4ebc53-c093-52be-84ac-9d58d5dc8bd4
+
+	/// Share of rows flagged as one-off outliers, latest run.
+	measure 'Latest Outlier Rate' = VAR r = MAX ( 'Quality Log'[Run At (UTC)] ) RETURN CALCULATE ( MAX ( 'Quality Log'[Outlier Rate] ), 'Quality Log'[Run At (UTC)] = r )
+		formatString: 0.000%
+		displayFolder: Data Health
+		lineageTag: f87981d4-1523-54f3-9f27-4b2c2c7adf68
+
+	/// Share of rows removed as copies after cleaning, latest run.
+	measure 'Latest Copies Rate' = VAR r = MAX ( 'Quality Log'[Run At (UTC)] ) RETURN CALCULATE ( MAX ( 'Quality Log'[Copies Rate] ), 'Quality Log'[Run At (UTC)] = r )
+		formatString: 0.000%
+		displayFolder: Data Health
+		lineageTag: 065e82b0-27e2-5f8d-91e5-85bec85b53fc
+
+	/// Markets with at least one price.
+	measure 'Markets Reporting' = DISTINCTCOUNT ( 'Market Day Price'[market_key] )
+		formatString: #,0
+		displayFolder: Data Health
+		lineageTag: 1d544d38-5d6a-5e4e-839b-c5437a899bdc
+
+	/// Markets with prices on the latest day. Low at first, because markets keep reporting for days.
+	measure 'Markets On Latest Day' = VAR d = [Latest Data Date] RETURN CALCULATE ( DISTINCTCOUNT ( 'Market Day Price'[market_key] ), REMOVEFILTERS (), 'Market Day Price'[Date] = d )
+		formatString: #,0
+		displayFolder: Data Health
+		lineageTag: 9022f32f-7bb3-592d-93eb-dca0bd87a0b0
+
+	/// Median markets reporting per final day over the last 60 days: what a complete day looks like.
+	measure 'Typical Markets Per Day' =
+			VAR f = [Latest Final Date]
+			RETURN
+			    CALCULATE (
+			        MEDIANX ( VALUES ( 'Market Day Price'[Date] ), CALCULATE ( DISTINCTCOUNT ( 'Market Day Price'[market_key] ) ) ),
+			        REMOVEFILTERS (),
+			        'Market Day Price'[Date] > f - 60,
+			        'Market Day Price'[Date] <= f
+			    )
+		formatString: #,0
+		displayFolder: Data Health
+		lineageTag: 9207e3f1-991e-5282-856e-6e5cb2af8e6b
+
+	/// Markets reporting each day, last 60 days: the dip at the end shows reports still arriving.
+	measure 'Markets Reporting Last 60 Days' =
+			VAR d = MAX ( 'Date'[Date] )
+			RETURN
+			    IF ( d > [Latest Data Date] - 60 && d <= [Latest Data Date], [Markets Reporting] )
+		formatString: #,0
+		displayFolder: Data Health
+		lineageTag: f6b59f81-0035-5410-9d79-0c4c3f66aeed
+
+	/// Every silver run is only logged after its reconciliation passes, so a logged run is a passed run.
+	measure 'Reconciliation Status' =
+			VAR runs = COUNTROWS ( 'Quality Log' )
+			RETURN
+			    IF ( runs > 0, "✅  Passed on all " & runs & " logged runs: every row used is accounted for", "No runs logged yet" )
+		displayFolder: Data Health
+		lineageTag: 98416133-2c41-55c7-88d8-af0559ec5f07
+
+	/// Traffic light for the quarantine rate.
+	measure 'Quarantine Status' = IF ( [Latest Quarantine Rate] <= 0.001, "✅  Quarantine under 0.1%: normal", "⚠️  Quarantine above 0.1%: check the source" )
+		displayFolder: Data Health
+		lineageTag: ea2c83fe-d094-5808-9888-a5eeda2bc9cb
+
+	/// Traffic light for how recent the data is.
+	measure 'Freshness Status' =
+			VAR age = TODAY () - [Latest Data Date]
+			RETURN
+			    IF ( age <= 2, "✅  Up to date: latest prices from " & FORMAT ( [Latest Data Date], "d mmm" ),
+			        "⚠️  Latest prices are " & age & " days old: check the nightly run" )
+		displayFolder: Data Health
+		lineageTag: 3b2af0d0-54a2-50c7-bd72-148bd70fc372
+
+	/// Headline price, shown only for crops sold in at least 50 markets that week.
+	measure 'Mover Price' = IF ( [Markets In Headline Week] >= 50, [Headline Price] )
+		formatString: ₹#,0
+		displayFolder: Movers
+		lineageTag: 293b999e-8272-40e6-9e0e-8f955d631be1
+
+	/// Weekly change, shown only for crops sold in at least 50 markets.
+	measure 'Mover Change Week' = IF ( [Markets In Headline Week] >= 50, [Change vs Week Before] )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Movers
+		lineageTag: a24cc8ae-4118-4411-a4ed-7a5e6a7a8caf
+
+	/// Markets behind the figure, shown only for crops sold in at least 50 markets.
+	measure 'Mover Markets' = IF ( [Markets In Headline Week] >= 50, [Markets In Headline Week] )
+		formatString: #,0
+		displayFolder: Movers
+		lineageTag: 83b18ece-81e0-4ae7-86ed-4202bd0d04c5
+
+	/// All India monthly price: the median of market prices, Rs per quintal.
+	measure 'National Monthly Price' = CALCULATE ( SUM ( 'Monthly Price'[Median Price] ), 'Monthly Price'[State] = "All India", REMOVEFILTERS ( 'State' ) )
+		formatString: ₹#,0
+		displayFolder: National Price
+		lineageTag: 85344249-7297-42f3-bf65-da73812be89e
+
+	/// Quarantine rate of a silver run.
+	measure 'Run Quarantine Rate' = MAX ( 'Quality Log'[Quarantine Rate] )
+		formatString: 0.000%
+		displayFolder: Data Health
+		lineageTag: e3eacff5-4a3f-4ddf-882b-769ff1463955
+
+	/// Outlier rate of a silver run.
+	measure 'Run Outlier Rate' = MAX ( 'Quality Log'[Outlier Rate] )
+		formatString: 0.000%
+		displayFolder: Data Health
+		lineageTag: e5a68ecb-895f-43bb-875e-0ac3d0b87bb7
+
+	/// Copies-after-cleaning rate of a silver run.
+	measure 'Run Copies Rate' = MAX ( 'Quality Log'[Copies Rate] )
+		formatString: 0.000%
+		displayFolder: Data Health
+		lineageTag: 1b536427-9e0d-4085-b9a5-cdba4d5b4d9d
+
+	/// Lowest All India weekly price in the history loaded so far.
+	measure 'Lowest Week So Far' =
+			CALCULATE (
+			    MINX ( VALUES ( 'Weekly Price'[Week Start] ), [National Price] ),
+			    REMOVEFILTERS ( 'Date' ),
+			    REMOVEFILTERS ( 'Weekly Price'[Week Start] )
+			)
+		formatString: ₹#,0
+		displayFolder: Seasons
+		lineageTag: 24964fb7-9d4e-5884-92c9-fa2d5fcd2c8f
+
+	/// Highest All India weekly price in the history loaded so far.
+	measure 'Highest Week So Far' =
+			CALCULATE (
+			    MAXX ( VALUES ( 'Weekly Price'[Week Start] ), [National Price] ),
+			    REMOVEFILTERS ( 'Date' ),
+			    REMOVEFILTERS ( 'Weekly Price'[Week Start] )
+			)
+		formatString: ₹#,0
+		displayFolder: Seasons
+		lineageTag: efe16c22-0467-5f32-a810-ae068696e6af
+
+	/// Where this week's price sits between the lowest (0%) and highest (100%) week so far.
+	measure 'Position In Range' = DIVIDE ( [Headline Price] - [Lowest Week So Far], [Highest Week So Far] - [Lowest Week So Far] )
+		formatString: 0%
+		displayFolder: Seasons
+		lineageTag: 9f2bd457-e59a-5c7f-901c-456d26430f5e
+
+	/// Lowest minimum price the market reported in the selected period.
+	measure 'Market Lowest Price' =
+			VAR d = [Latest Data Date]
+			VAR n = [Period Days]
+			RETURN
+			    CALCULATE (
+			        MIN ( 'Market Day Price'[Min Price] ),
+			        REMOVEFILTERS ( 'Date' ),
+			        'Market Day Price'[Date] > d - n,
+			        'Market Day Price'[Date] <= d,
+			        'Market Day Price'[Is Unit Suspect] = FALSE ()
+			    )
+		formatString: ₹#,0
+		displayFolder: Market Detail
+		lineageTag: 35ce080a-a41f-5143-b55a-708cd13516ec
+
+	/// Highest maximum price the market reported in the selected period.
+	measure 'Market Highest Price' =
+			VAR d = [Latest Data Date]
+			VAR n = [Period Days]
+			RETURN
+			    CALCULATE (
+			        MAX ( 'Market Day Price'[Max Price] ),
+			        REMOVEFILTERS ( 'Date' ),
+			        'Market Day Price'[Date] > d - n,
+			        'Market Day Price'[Date] <= d,
+			        'Market Day Price'[Is Unit Suspect] = FALSE ()
+			    )
+		formatString: ₹#,0
+		displayFolder: Market Detail
+		lineageTag: 7d906199-2c8d-5bf3-b081-2f273cb0f71d
+
+	/// Number of varieties behind the market's price in the selected period.
+	measure 'Market Varieties' =
+			VAR d = [Latest Data Date]
+			VAR n = [Period Days]
+			RETURN
+			    CALCULATE (
+			        DISTINCTCOUNT ( 'Market Day Price'[Variety] ),
+			        REMOVEFILTERS ( 'Date' ),
+			        'Market Day Price'[Date] > d - n,
+			        'Market Day Price'[Date] <= d,
+			        'Market Day Price'[Is Unit Suspect] = FALSE ()
+			    )
+		formatString: 0
+		displayFolder: Market Detail
+		lineageTag: 7226b4de-d885-53c4-9864-4837dfdaaaa9
+
+	/// Number of grades behind the market's price in the selected period.
+	measure 'Market Grades' =
+			VAR d = [Latest Data Date]
+			VAR n = [Period Days]
+			RETURN
+			    CALCULATE (
+			        DISTINCTCOUNT ( 'Market Day Price'[Grade] ),
+			        REMOVEFILTERS ( 'Date' ),
+			        'Market Day Price'[Date] > d - n,
+			        'Market Day Price'[Date] <= d,
+			        'Market Day Price'[Is Unit Suspect] = FALSE ()
+			    )
+		formatString: 0
+		displayFolder: Market Detail
+		lineageTag: 48a5b1dc-cc78-5204-8f55-967ce7513ae4
+
+	/// The market's average modal price on each day of the last 90 days that it reported.
+	measure 'Market Daily Price' =
+			VAR d = [Latest Data Date]
+			VAR day = MAX ( 'Date'[Date] )
+			RETURN
+			    IF (
+			        day > d - 90 && day <= d,
+			        CALCULATE ( AVERAGE ( 'Market Day Price'[Modal Price] ), 'Market Day Price'[Is Unit Suspect] = FALSE () )
+			    )
+		formatString: ₹#,0
+		displayFolder: Market Detail
+		lineageTag: c905dcd2-6ab2-56f5-8600-7e98bddf3675
+
+	/// Median price across all markets in the same state on each day of the last 90 days.
+	measure 'State Daily Median' =
+			VAR d = [Latest Data Date]
+			VAR day = MAX ( 'Date'[Date] )
+			VAR s = SELECTEDVALUE ( Market[State] )
+			RETURN
+			    IF (
+			        day > d - 90 && day <= d && NOT ISBLANK ( s ),
+			        CALCULATE (
+			            MEDIANX (
+			                FILTER (
+			                    VALUES ( Market[market_key] ),
+			                    NOT ISBLANK ( CALCULATE ( AVERAGE ( 'Market Day Price'[Modal Price] ) ) )
+			                ),
+			                CALCULATE ( AVERAGE ( 'Market Day Price'[Modal Price] ) )
+			            ),
+			            REMOVEFILTERS ( Market ),
+			            Market[State] = s,
+			            'Market Day Price'[Is Unit Suspect] = FALSE ()
+			        )
+			    )
+		formatString: ₹#,0
+		displayFolder: Market Detail
+		lineageTag: 967b2846-1a10-53f8-809d-33182804a0bb
+
+	/// A sentence describing one market's price for the crop, against its state, and how many varieties and grades it mixes.
+	measure 'Market Detail Summary' =
+			VAR mk = SELECTEDVALUE ( Market[Market] )
+			VAR dist = SELECTEDVALUE ( Market[District] )
+			VAR st = SELECTEDVALUE ( Market[State] )
+			VAR crop = SELECTEDVALUE ( Commodity[Crop] )
+			VAR p = [Market Price]
+			VAR vs = [vs State Median]
+			VAR v = [Market Varieties]
+			VAR g = [Market Grades]
+			VAR versus =
+			    IF (
+			        ISBLANK ( vs ), "",
+			        ", " & FORMAT ( ABS ( vs ), "0%" ) & IF ( vs >= 0, " above", " below" ) & " the " & st & " median"
+			    )
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( mk ), "Open this page from Market finder: right-click a market in the table, then choose Drill through > Market detail.",
+			        ISBLANK ( crop ), "Pick one crop on Market finder, then drill through to see this market's prices.",
+			        ISBLANK ( p ), mk & " reported no comparable " & crop & " prices in the " & [Period Label] & ".",
+			        "In the " & [Period Label] & ", " & mk & " (" & dist & ", " & st & ") paid ₹" & FORMAT ( p, "#,0" )
+			            & " a quintal on average for " & crop & versus & ". "
+			            & IF (
+			                v * g > 1,
+			                "That average mixes " & v & IF ( v = 1, " variety", " varieties" ) & " and " & g
+			                    & IF ( g = 1, " grade", " grades" ) & ": the table shows what each fetched, so compare with the one closest to yours.",
+			                "Every report was the same variety and grade, so this price compares like with like."
+			            )
+			    )
+		displayFolder: Market Detail
+		lineageTag: ee1b54e9-33ec-5fea-920b-16162601b80c
+
+	column Dummy
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: ea2dd36f-3872-53ca-a3b1-a3188e15be86
+		summarizeBy: none
+		sourceColumn: [Dummy]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _Measures = calculated
+		mode: import
+		source = ROW("Dummy", 0)
+
+	annotation PBI_Id = b5997f0c1a3958409637ed6c1e735424
+

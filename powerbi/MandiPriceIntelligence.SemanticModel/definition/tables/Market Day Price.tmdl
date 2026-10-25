@@ -1,0 +1,153 @@
+/// One price per day, market, crop, variety and grade (the last 15 months).
+/// Several reports a day are combined: lowest minimum, highest maximum, average modal price.
+/// Outlier reports are left out of prices but counted in Outlier Reports.
+table 'Market Day Price'
+	lineageTag: e9b1b447-f926-5aa6-b650-776d24913901
+
+	/// Day the prices were reported.
+	column Date
+		dataType: dateTime
+		formatString: dd mmm yyyy
+		lineageTag: 30d6b2c6-9e19-5c7f-9aec-547a324f5aa0
+		summarizeBy: none
+		sourceColumn: Date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	/// Market key.
+	column market_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 86e0253b-3f11-5740-91ca-45408144072a
+		summarizeBy: none
+		sourceColumn: market_key
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Crop key.
+	column commodity_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 9581dd2a-f97d-58c2-87f2-8da35f1fbab4
+		summarizeBy: none
+		sourceColumn: commodity_key
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Variety, e.g. Red or Local.
+	column Variety
+		dataType: string
+		lineageTag: 1044572d-6343-5abe-8895-df03a89614f8
+		summarizeBy: none
+		sourceColumn: Variety
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Grade, e.g. FAQ (fair average quality).
+	column Grade
+		dataType: string
+		lineageTag: 96c35ede-2a94-5757-9d26-e9cd4813203f
+		summarizeBy: none
+		sourceColumn: Grade
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Price reports behind this row (excluding outliers).
+	column Reports
+		dataType: int64
+		formatString: #,0
+		lineageTag: 6895355f-847e-5c25-8f6e-6089116be660
+		summarizeBy: none
+		sourceColumn: Reports
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Reports left out because they were 10x off the market's usual price.
+	column 'Outlier Reports'
+		dataType: int64
+		formatString: #,0
+		lineageTag: 95af781b-ac52-5a0b-8fe0-ad7773e21b9b
+		summarizeBy: none
+		sourceColumn: Outlier Reports
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Lowest price paid, Rs per quintal.
+	column 'Min Price'
+		dataType: double
+		formatString: #,0
+		lineageTag: 4b1dc82d-2880-52dc-89ee-f97c49104086
+		summarizeBy: none
+		sourceColumn: Min Price
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Highest price paid, Rs per quintal.
+	column 'Max Price'
+		dataType: double
+		formatString: #,0
+		lineageTag: d86eb7f1-e24d-5fc8-8fd1-ab20e8257b68
+		summarizeBy: none
+		sourceColumn: Max Price
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Most common price paid, Rs per quintal.
+	column 'Modal Price'
+		dataType: double
+		formatString: #,0
+		lineageTag: 7b9d9c8d-7f9c-58a8-8d88-cba7dcaf88d3
+		summarizeBy: none
+		sourceColumn: Modal Price
+
+		annotation SummarizationSetBy = Automatic
+
+	/// This market's whole month is 10x off the typical market: likely priced per piece, bunch or kg. Fine for its own trend, not for comparisons.
+	column 'Is Unit Suspect'
+		dataType: boolean
+		lineageTag: 2641dd5b-7622-5bbc-bd71-d63f4ba33507
+		summarizeBy: none
+		sourceColumn: Is Unit Suspect
+
+		annotation SummarizationSetBy = Automatic
+
+	/// This market's monthly level divided by the typical market's (1 = typical).
+	column 'Level Ratio'
+		dataType: double
+		isHidden
+		formatString: 0.0000
+		lineageTag: bcbca1b4-902a-5865-b4a6-89046ef08380
+		summarizeBy: none
+		sourceColumn: Level Ratio
+
+		annotation SummarizationSetBy = Automatic
+
+	/// final, or provisional for the last 30 days, which still receive late reports.
+	column 'Data Status'
+		dataType: string
+		lineageTag: 4d0b2357-0c6b-5db3-ba03-88e2d3ea9149
+		summarizeBy: none
+		sourceColumn: Data Status
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Market Day Price' = m
+		mode: import
+		source =
+				let
+				    Source = MandiTable("gold", "fact_market_day_price"),
+				    Columns = Table.SelectColumns(Source, {"arrival_date", "market_key", "commodity_key", "variety", "grade", "report_count", "outlier_reports", "min_price", "max_price", "modal_price", "is_unit_suspect", "level_ratio", "data_status"}),
+				    // Only the most recent months are loaded here; trends use the weekly and monthly tables.
+				    Cutoff = Date.AddMonths(Date.From(DateTime.LocalNow()), -FactMonths),
+				    Recent = Table.SelectRows(Columns, each [arrival_date] >= Cutoff),
+				    Typed = Table.TransformColumnTypes(Recent, {{"arrival_date", type date}, {"market_key", Int64.Type}, {"commodity_key", Int64.Type}, {"variety", type text}, {"grade", type text}, {"report_count", Int64.Type}, {"outlier_reports", Int64.Type}, {"min_price", type number}, {"max_price", type number}, {"modal_price", type number}, {"is_unit_suspect", type logical}, {"level_ratio", type number}, {"data_status", type text}}),
+				    Renamed = Table.RenameColumns(Typed, {{"arrival_date", "Date"}, {"variety", "Variety"}, {"grade", "Grade"}, {"report_count", "Reports"}, {"outlier_reports", "Outlier Reports"}, {"min_price", "Min Price"}, {"max_price", "Max Price"}, {"modal_price", "Modal Price"}, {"is_unit_suspect", "Is Unit Suspect"}, {"level_ratio", "Level Ratio"}, {"data_status", "Data Status"}})
+				in
+				    Renamed
+
+	annotation PBI_ResultType = Table
+

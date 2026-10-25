@@ -1,0 +1,24 @@
+/// One row per state, for slicers and to link markets with the weekly and monthly tables.
+table State
+	lineageTag: d926e31d-cd96-5118-83df-9b6add79ee6f
+
+	/// State (standard spelling).
+	column State
+		dataType: string
+		lineageTag: f5a5b6b4-20ed-5a3e-b598-e3441813e03b
+		summarizeBy: none
+		sourceColumn: State
+
+		annotation SummarizationSetBy = Automatic
+
+	partition State = m
+		mode: import
+		source =
+				let
+				    Source = Table.Distinct(Table.SelectColumns(Market, {"State"})),
+				    NoBlanks = Table.SelectRows(Source, each [State] <> null and [State] <> "")
+				in
+				    NoBlanks
+
+	annotation PBI_ResultType = Table
+

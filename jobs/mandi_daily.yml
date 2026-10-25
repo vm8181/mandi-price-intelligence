@@ -52,6 +52,8 @@ resources:
       parameters:
         - name: catalog
           default: mandi_dev             # mandi_prod later: same code, one value changes
+        - name: mode
+          default: auto                  # auto = only changed months; full = rebuild silver and gold from all history
       environments:
         - environment_key: Default
           spec:

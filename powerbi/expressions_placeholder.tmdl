@@ -1,0 +1,38 @@
+/// Databricks SQL warehouse server hostname (SQL Warehouses > your warehouse > Connection details).
+/// The repository holds a placeholder; set your own value in Power BI Desktop (Transform data > Edit parameters).
+expression DatabricksHost = "your-workspace.cloud.databricks.com" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: aba0a75b-2189-5a84-9dd1-f2ed7da55fc0
+
+	annotation PBI_ResultType = Text
+
+/// Databricks SQL warehouse HTTP path (Connection details), e.g. /sql/1.0/warehouses/abc123.
+expression DatabricksHttpPath = "/sql/1.0/warehouses/your-warehouse-id" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: 5868011c-0c28-5010-ad3b-b180064d106f
+
+	annotation PBI_ResultType = Text
+
+/// Unity Catalog catalog to read: mandi_dev, or mandi_prod later.
+expression Catalog = "mandi_dev" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: 049d987c-7ab6-5b84-9498-4363ffd61faf
+
+	annotation PBI_ResultType = Text
+
+/// Months of daily market prices to load. Trends and seasons use the weekly and monthly tables, which hold the full history.
+expression FactMonths = 15 meta [IsParameterQuery=true, Type="Number", IsParameterQueryRequired=true]
+	lineageTag: aad3dc3a-faff-5d5e-b2ff-1ab2c7b0df5e
+
+	annotation PBI_ResultType = Number
+
+/// Reads one table from the Databricks catalog: MandiTable("gold", "dim_date").
+expression MandiTable =
+		(schema as text, tableName as text) as table =>
+		let
+		    Source = DatabricksMultiCloud.Catalogs(DatabricksHost, DatabricksHttpPath, [Catalog = "", Database = ""]),
+		    CatalogData = Source{[Name = Catalog, Kind = "Database"]}[Data],
+		    SchemaData = CatalogData{[Name = schema, Kind = "Schema"]}[Data],
+		    TableData = SchemaData{[Name = tableName, Kind = "Table"]}[Data]
+		in
+		    TableData
+	lineageTag: 4b746acb-0d4c-5611-9969-ef8770fefcc6
+
+	annotation PBI_ResultType = Function

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "MandiPriceIntelligence"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "4ee65d59-19f6-4574-abde-ce2b98d5393a"
+  }
+}

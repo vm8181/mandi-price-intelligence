@@ -23,3 +23,8 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .vscode/
+
+# Power BI project: local settings and the data cache stay on this computer.
+# (The cache holds imported data; the model and report definitions are tracked.)
+powerbi/**/.pbi/localSettings.json
+powerbi/**/.pbi/cache.abf

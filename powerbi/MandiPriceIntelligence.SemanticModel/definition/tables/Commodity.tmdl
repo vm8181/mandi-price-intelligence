@@ -1,0 +1,48 @@
+/// One row per crop (commodity) as named by AGMARKNET.
+table Commodity
+	lineageTag: cb9dc104-a7a6-5501-ae3d-dd4e8c2b768f
+
+	/// Stable key: a hash of the crop name.
+	column commodity_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: c33584b4-cfe3-5719-b19b-936bb415f504
+		summarizeBy: none
+		sourceColumn: commodity_key
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Crop name as published by AGMARKNET, e.g. Onion, Tomato.
+	column Crop
+		dataType: string
+		lineageTag: 70d21714-04c0-569e-afb6-63363f6b75ca
+		summarizeBy: none
+		sourceColumn: Crop
+
+		annotation SummarizationSetBy = Automatic
+
+	/// AGMARKNET commodity code.
+	column 'Crop Code'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: bfbc7abe-8734-5988-bedd-1b082854303f
+		summarizeBy: none
+		sourceColumn: Crop Code
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Commodity = m
+		mode: import
+		source =
+				let
+				    Source = MandiTable("gold", "dim_commodity"),
+				    Columns = Table.SelectColumns(Source, {"commodity_key", "commodity", "commodity_code"}),
+				    Typed = Table.TransformColumnTypes(Columns, {{"commodity_key", Int64.Type}, {"commodity", type text}, {"commodity_code", Int64.Type}}),
+				    Renamed = Table.RenameColumns(Typed, {{"commodity", "Crop"}, {"commodity_code", "Crop Code"}})
+				in
+				    Renamed
+
+	annotation PBI_ResultType = Table
+

@@ -24,15 +24,16 @@ reconciliation at every step, and a daily automated job.
 5. [How the pipeline works](#how-the-pipeline-works)
 6. [What the data revealed](#what-the-data-revealed)
 7. [Reliability: how every number is proved](#reliability-how-every-number-is-proved)
-8. [Engineering challenges solved](#engineering-challenges-solved)
-9. [Concepts, tech stack and operations](#concepts-tech-stack-and-operations)
-10. [Key design decisions](#key-design-decisions)
-11. [Screenshots](#screenshots)
-12. [Repository structure](#repository-structure)
-13. [How to run it](#how-to-run-it)
-14. [Roadmap](#roadmap)
-15. [Lessons learned](#lessons-learned)
-16. [Data source](#data-source)
+8. [Built for growing data](#built-for-growing-data)
+9. [Engineering challenges solved](#engineering-challenges-solved)
+10. [Concepts, tech stack and operations](#concepts-tech-stack-and-operations)
+11. [Key design decisions](#key-design-decisions)
+12. [Screenshots](#screenshots)
+13. [Repository structure](#repository-structure)
+14. [How to run it](#how-to-run-it)
+15. [Roadmap](#roadmap)
+16. [Lessons learned](#lessons-learned)
+17. [Data source](#data-source)
 
 **Deeper reading:** [design decisions](docs/decisions.md) ·
 [data quality findings](docs/data_quality.md) · [incidents](docs/incidents/) ·
@@ -122,6 +123,7 @@ uploaded version from a partly uploaded one.
 - Final days and provisional versions load into separate tables; superseded provisional
   versions, and those of days that became final, are removed after each load.
 - **Reconciliation:** each file's rows must equal the API's total for that state, or the run fails.
+- **Change Data Feed** on, and the final table **clustered by day**, so silver can read only what changed.
 
 ### 4. Silver · [`notebooks/20_silver_mandi_prices.py`](notebooks/20_silver_mandi_prices.py)
 
@@ -137,6 +139,10 @@ uploaded version from a partly uploaded one.
 | **Reconciliation** | rows used from bronze = silver + quarantine + copies removed, or the run fails |
 
 Each run appends its counts to `ops.silver_quality_log`, so quality is tracked over time.
+
+**Incremental by month:** a run rebuilds only the months whose bronze data changed (see
+[Built for growing data](#built-for-growing-data)); reconciliation still covers every month,
+through a month-by-month ledger.
 
 ### 5. Gold · [`notebooks/30_gold_mandi_prices.py`](notebooks/30_gold_mandi_prices.py)
 
@@ -158,6 +164,7 @@ A **star schema** for Power BI:
   `provisional_days`, so reports can mark figures that may still change.
 - **Checks:** every silver report in the fact table, no key clashes, no duplicate grain,
   every fact linked to its dimensions. Any failure stops the run.
+- **Incremental:** follows silver, replacing only the months it rebuilt (and every week touching them).
 
 ### 6. Orchestration · [`jobs/mandi_daily.yml`](jobs/mandi_daily.yml)
 A Databricks job runs **bronze → silver → gold** daily at 07:00 IST on serverless
@@ -225,6 +232,41 @@ show whether these moves are the usual seasonal pattern.
 Every step is **idempotent** (safe to rerun) and **resumable**. 35 automated tests
 reproduce failures met against the real API.
 
+## Built for growing data
+
+The history keeps growing as the backfill runs. Each layer is built so that daily work depends
+on **what changed**, not on how much history exists.
+
+| Layer | Technique | What it saves |
+| --- | --- | --- |
+| Laptop | Download and upload only missing or changed days | History is never fetched twice |
+| Bronze | Auto Loader with checkpoints | Each run loads only new files |
+| Bronze | **Change Data Feed** | Silver asks "what changed since version N?" instead of re-reading bronze |
+| All layers | **Liquid clustering** by date | Reading one month opens only that month's files |
+| Silver, gold | **Rebuild only changed months**, swapped in one transaction (`replaceWhere`) | A daily run touches one or two months, whatever the length of the history |
+| Gold | Weekly and monthly tables built with `GROUPING SETS` | Trend queries read tables tens of times smaller than the daily fact |
+| Power BI | Star schema, integer keys, daily rows for the last 15 months, trends from aggregates | The model stays small and quick to refresh |
+
+**Why months, not days?** Silver's unit and outlier flags compare a price with its market's
+**monthly** median, so one new day can change every flag in its month. The month is the
+smallest unit that can be rebuilt on its own and give exactly the result of a full rebuild.
+
+**Safety switches**
+- A **fingerprint of the rules** (rule SQL and state mapping) is compared with the last run's.
+  Change a rule and the next run rebuilds every month automatically, so old and new months
+  never follow different rules. Gold does the same for its own logic.
+- Full rebuild on the first run, on request (`mode = full`), or if the change feed can't be read.
+- State is saved only after a run succeeds; replacing a month twice gives the same result.
+
+**Proved, not assumed.** [`tests/local_incremental_test.py`](tests/local_incremental_test.py)
+runs the real notebooks on local Spark: a full build, new data arriving (days turning final, a new
+provisional version, an incomplete one, a backfilled older month), an incremental run, then a
+fresh full rebuild of the same bronze. **All eight output tables match row for row.** It also
+checks that an unchanged bronze skips, and that a rules change forces a full rebuild.
+
+**Measured on every run.** `ops.pipeline_runs` records each run's mode, reason, months, rows read
+and written, and seconds, so the saving is visible in the data rather than claimed.
+
 ## Engineering challenges solved
 
 | Challenge | What happened | Fix | Write-up |
@@ -239,6 +281,7 @@ reproduce failures met against the real API.
 | Mixed units in one column | Per-bunch prices looked like outliers | Series-level unit flag | [data quality](docs/data_quality.md) |
 | Finished days stuck on the laptop | During the backfill the download ran for days, so the upload after it never started | Upload as its own task every 2 hours | [decision 009](docs/decisions.md) |
 | Recent days a month late | Days were held back until final | Provisional versions, marked as such | [decision 009](docs/decisions.md) |
+| Daily cost growing with history | Silver and gold reprocessed all history every morning | Rebuild only changed months, via Change Data Feed; proved equal to a full rebuild | [decision 010](docs/decisions.md) |
 
 ## Concepts, tech stack and operations
 
@@ -261,7 +304,7 @@ reproduce failures met against the real API.
 | Ingestion | Incremental loading, checkpoints, schema-on-read, raw data kept unchanged, late-arriving data, day-level snapshot CDC, provisional and final data |
 | Data quality | Profiling before rules, quarantine with reasons, reconciliation, robust outlier detection (median), reference tables for names |
 | Modelling | Grain decisions, star schema, hash keys, pre-aggregated tables, `GROUPING SETS` for state and national totals |
-| Performance | Liquid clustering, compressed raw files, full rebuild now with incremental as a measured next step |
+| Performance | Incremental processing by month, Change Data Feed, atomic partial overwrite (`replaceWhere`), liquid clustering, data skipping, pre-aggregated tables, compressed raw files |
 | Reliability | Idempotency, retries with backoff, rate-limit handling, timeouts, fail fast, file locks, completion markers |
 | Security | Secrets outside code, least-privilege tokens, key redaction in logs, rotation after exposure, public-repo hygiene |
 | Engineering practice | Decision log, incident write-ups, tests reproducing real failures, Git workflow without force-pushing |
@@ -289,6 +332,7 @@ Full reasoning and alternatives in [`docs/decisions.md`](docs/decisions.md).
 7. Two price flags: unit-suspect series and one-off outliers
 8. Gold as a star schema; national prices as medians of market prices
 9. Recent days shown as provisional; upload separate from download
+10. Silver and gold rebuild only the months that changed
 
 ## Screenshots
 
@@ -312,9 +356,9 @@ daily_run.ps1              runs the download or upload step, with logs
 setup_scheduled_task.ps1   one-time: save the API key, create the download and upload tasks
 setup_databricks_token.ps1 one-time: save and test the Databricks token
 status.ps1 / status.py     progress, gaps, failures, last run
-notebooks/                 Databricks: 10 bronze, 20 silver, 30 gold
+notebooks/                 Databricks: 10 bronze, 20 silver, 30 gold; incremental.py (shared helpers)
 jobs/                      Databricks job definition (YAML) and notes
-tests/                     pytest: 35 tests
+tests/                     pytest: 35 tests; local_incremental_test.py (Spark: incremental = full rebuild)
 tools/                     diagnostics: compare downloads, test User-Agent, pull a sample
 docs/
   decisions.md             design decisions and alternatives
@@ -342,7 +386,8 @@ powershell -ExecutionPolicy Bypass -File .\setup_scheduled_task.ps1     # API ke
 
 **Daily:** automatic. Check the laptop with `.\status.ps1`; check Databricks in the job's run history.
 
-**Tests:** `python -m pytest -v`
+**Tests:** `python -m pytest -v`. The Spark test needs PySpark and Java:
+`python tests/local_incremental_test.py`
 
 ## Roadmap
 
@@ -353,6 +398,7 @@ powershell -ExecutionPolicy Bypass -File .\setup_scheduled_task.ps1     # API ke
 - [x] Gold: star schema, market-day fact, weekly and monthly prices
 - [x] Daily Databricks job with alerts
 - [x] Recent days as provisional data, so gold reaches yesterday
+- [x] Incremental silver and gold by month, proved equal to a full rebuild
 - [ ] Historical backfill complete
 - [ ] Power BI report and public price tracker
 - [ ] Price signals: best nearby mandi, unusual rises, prices below MSP

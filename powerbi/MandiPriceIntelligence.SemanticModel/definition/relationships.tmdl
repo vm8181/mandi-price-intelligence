@@ -1,0 +1,40 @@
+relationship 3da35baa-c959-51b2-af73-6ff4ae66df05
+	fromColumn: 'Market Day Price'.Date
+	toColumn: Date.Date
+
+relationship 2be470f3-a218-5109-bf8e-f7eef3c7334f
+	fromColumn: 'Market Day Price'.market_key
+	toColumn: Market.market_key
+
+relationship 7e0f3051-cf8f-54f7-b16b-6a9fec687467
+	fromColumn: 'Market Day Price'.commodity_key
+	toColumn: Commodity.commodity_key
+
+relationship cc2c52d3-0d3d-58b7-bdb2-a3290967b0ba
+	fromColumn: Market.State
+	toColumn: State.State
+
+relationship b75069f7-a34b-5551-8f30-f66782485739
+	fromColumn: 'Weekly Price'.'Week Start'
+	toColumn: Date.Date
+
+relationship 0af9654e-cb48-57e4-918c-02beae82c5cb
+	fromColumn: 'Weekly Price'.commodity_key
+	toColumn: Commodity.commodity_key
+
+relationship 4caf5359-048b-5266-87ad-86916e9c4528
+	fromColumn: 'Weekly Price'.State
+	toColumn: State.State
+
+relationship cf51bf56-6c0c-5ded-8a3f-d281fcc6a720
+	fromColumn: 'Monthly Price'.'Month Start'
+	toColumn: Date.Date
+
+relationship 1da8e4ea-c0da-5e09-89d3-7d645cace008
+	fromColumn: 'Monthly Price'.commodity_key
+	toColumn: Commodity.commodity_key
+
+relationship df63d251-ecf9-5407-9b6c-eaade6c08ad5
+	fromColumn: 'Monthly Price'.State
+	toColumn: State.State
+

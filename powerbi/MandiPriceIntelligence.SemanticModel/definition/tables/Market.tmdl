@@ -1,0 +1,55 @@
+/// One row per mandi (wholesale market).
+table Market
+	lineageTag: bf97b4dd-c5a6-53ca-a0b5-ee85251db958
+
+	/// Stable key: a hash of state, district and market.
+	column market_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 1041fe6b-6548-5ab2-9bfb-ca7682e5d0bf
+		summarizeBy: none
+		sourceColumn: market_key
+
+		annotation SummarizationSetBy = Automatic
+
+	/// State (standard spelling).
+	column State
+		dataType: string
+		lineageTag: 8075669c-f185-55b7-b8fa-cc0534dfc519
+		summarizeBy: none
+		sourceColumn: State
+
+		annotation SummarizationSetBy = Automatic
+
+	/// District.
+	column District
+		dataType: string
+		lineageTag: e70f12f0-1954-5ec1-9fcd-2459840627db
+		summarizeBy: none
+		sourceColumn: District
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Mandi name.
+	column Market
+		dataType: string
+		lineageTag: 78f05556-8f57-5bb5-95d7-897f2625aa7f
+		summarizeBy: none
+		sourceColumn: Market
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Market = m
+		mode: import
+		source =
+				let
+				    Source = MandiTable("gold", "dim_market"),
+				    Columns = Table.SelectColumns(Source, {"market_key", "state", "district", "market"}),
+				    Typed = Table.TransformColumnTypes(Columns, {{"market_key", Int64.Type}, {"state", type text}, {"district", type text}, {"market", type text}}),
+				    Renamed = Table.RenameColumns(Typed, {{"state", "State"}, {"district", "District"}, {"market", "Market"}})
+				in
+				    Renamed
+
+	annotation PBI_ResultType = Table
+

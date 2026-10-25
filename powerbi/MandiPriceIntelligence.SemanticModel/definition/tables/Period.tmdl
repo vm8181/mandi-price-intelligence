@@ -1,0 +1,31 @@
+/// Choice of period for the market and state pages: last 7 or last 30 days.
+table Period
+	lineageTag: 6ddc9fda-95f3-54c4-91b5-9a8ed423b6a1
+
+	/// Period name shown in the slicer.
+	column Period
+		dataType: string
+		lineageTag: b9195c5f-35a8-5796-90e2-515124ed050a
+		summarizeBy: none
+		sourceColumn: [Period]
+		sortByColumn: Days
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Number of days in the period.
+	column Days
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: aefb018b-c1d2-5941-8035-25e9ff3ce489
+		summarizeBy: none
+		sourceColumn: [Days]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Period = calculated
+		mode: import
+		source = DATATABLE("Period", STRING, "Days", INTEGER, {{"Last 7 days", 7}, {"Last 30 days", 30}})
+
+	annotation PBI_Id = fc39d49b9a4d58ac9a4bf839c4bee51a
+

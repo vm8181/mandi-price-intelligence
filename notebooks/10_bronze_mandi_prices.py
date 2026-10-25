@@ -16,6 +16,10 @@
 # MAGIC - **Lineage**: every row records its source file and load time.
 # MAGIC - A provisional version's folder name carries its row count (`expected_rows`), so silver can tell
 # MAGIC   a fully uploaded version from a partly uploaded one.
+# MAGIC - **Change Data Feed** is on for both tables: Delta records every row added or removed, so silver
+# MAGIC   can ask "what changed since version N?" and rebuild only those months.
+# MAGIC - The final table is **clustered by day** (`folder_arrival_date`), so reading one month touches only
+# MAGIC   that month's files, however many years the table holds.
 
 # COMMAND ----------
 
@@ -165,6 +169,30 @@ WHERE concat(folder_arrival_date, '|', pulled_at) IN (
 )
 """)
 print("Rows in bronze (provisional, after housekeeping):", spark.table(PROV_TARGET).count())
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Change Data Feed and clustering (set once; checked on every run)
+# MAGIC - **Change Data Feed** lets silver read only the rows added or removed since its last run, instead of
+# MAGIC   comparing all of bronze. Changes made before it was switched on aren't recorded, which is fine:
+# MAGIC   silver's first run after that is a full rebuild anyway.
+# MAGIC - **Liquid clustering by day** groups each day's rows into the same files. `OPTIMIZE` clusters only the
+# MAGIC   files written since the last run, so it stays cheap as the table grows.
+
+# COMMAND ----------
+
+for table in [TARGET, PROV_TARGET]:
+    props = {r["key"]: r["value"] for r in spark.sql(f"SHOW TBLPROPERTIES {table}").collect()}
+    if props.get("delta.enableChangeDataFeed") != "true":
+        spark.sql(f"ALTER TABLE {table} SET TBLPROPERTIES (delta.enableChangeDataFeed = true)")
+        print("Change Data Feed switched on for", table)
+
+clustered_by = spark.sql(f"DESCRIBE DETAIL {TARGET}").first()["clusteringColumns"] or []
+if list(clustered_by) != ["folder_arrival_date"]:
+    spark.sql(f"ALTER TABLE {TARGET} CLUSTER BY (folder_arrival_date)")
+    print("Clustering set on", TARGET)
+spark.sql(f"OPTIMIZE {TARGET}")
 
 # COMMAND ----------
 
