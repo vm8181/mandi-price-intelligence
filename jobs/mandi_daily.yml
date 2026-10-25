@@ -1,4 +1,5 @@
 # Databricks job: bronze -> silver -> gold, daily at 07:00 IST.
+# Schedule paused on 25 Oct 2026: the dataset is complete; Run now still works. UNPAUSED resumes it.
 # Exported from the Databricks UI (View as code) on 24 Oct 2026.
 # The alert email is a variable so no personal address is stored in this public repo.
 # How to recreate the job: see jobs/README.md.
@@ -13,7 +14,7 @@ resources:
       schedule:
         quartz_cron_expression: 54 0 7 * * ?   # 07:00:54 every day (Databricks adds the seconds)
         timezone_id: Asia/Calcutta
-        pause_status: UNPAUSED
+        pause_status: PAUSED
       tasks:
         - task_key: bronze
           notebook_task:

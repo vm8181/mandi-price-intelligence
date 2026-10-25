@@ -4,10 +4,10 @@
   "position": {
     "x": 1532,
     "y": 128,
-    "z": 11000,
+    "z": 2000,
     "height": 904,
     "width": 348,
-    "tabOrder": 11000
+    "tabOrder": 2000
   },
   "visual": {
     "visualType": "textbox",
@@ -21,227 +21,210 @@
                   {
                     "value": "How to read this page",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "18pt",
-                      "color": "#12324A",
-                      "fontWeight": "bold"
+                      "color": "#12324a"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": " ",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "8pt",
                       "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "The idea",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Many crops follow a yearly cycle: cheap after harvest, dear before the next one. Comparing the same week across years shows whether today's price is unusual.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": " ",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "8pt",
                       "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "The lines",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
-                    "value": "The horizontal axis is the week of the year (1 to 52). Each year is its own line. A line well above the others means an unusually dear year.",
+                    "value": "The axis is the week of the year, Wk 01 to Wk 52 (some years have a Wk 53). Weeks run Monday to Sunday; Wk 01 holds the year's first Thursday (ISO standard), so 29 Dec 2025 to 4 Jan 2026 is Wk 01 of 2026. A line well above the others means an unusually dear year.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": " ",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "8pt",
                       "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "The cards",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "This week's price next to the lowest and highest week loaded so far. Position in range: 0% means this week is the cheapest so far, 100% the dearest.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": " ",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "8pt",
                       "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "The columns",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "All India price for every month loaded so far, with the value on each column.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": " ",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "8pt",
                       "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
-                    "value": "Growing history",
+                    "value": "History",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
-                    "value": "The historical download is filling in older years night by night, so this page gets richer over time.",
+                    "value": "Data starts in October 2025, so October can be compared across two years.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": " ",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "8pt",
                       "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               }
             ]
           }

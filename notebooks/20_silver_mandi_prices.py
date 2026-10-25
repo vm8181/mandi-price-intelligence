@@ -83,7 +83,7 @@ INSERT INTO {C}.silver.ref_state_alias VALUES
   ('Maharashtra', 'Maharashtra'), ('Manipur', 'Manipur'), ('Meghalaya', 'Meghalaya'),
   ('Mizoram', 'Mizoram'), ('Nagaland', 'Nagaland'), ('Punjab', 'Punjab'), ('Rajasthan', 'Rajasthan'),
   ('Sikkim', 'Sikkim'), ('Tamil Nadu', 'Tamil Nadu'), ('Telangana', 'Telangana'), ('Tripura', 'Tripura'),
-  ('Uttar Pradesh', 'Uttar Pradesh'), ('Uttarakhand', 'Uttarakhand'), ('West Bengal', 'West Bengal')
+  ('Uttar Pradesh', 'Uttar Pradesh'), ('Uttarakhand', 'Uttarakhand'), ('Uttrakhand', 'Uttarakhand'), ('West Bengal', 'West Bengal')
 """)
 ALIASES = sorted(tuple(r) for r in spark.table(f"{C}.silver.ref_state_alias").collect())
 

@@ -100,7 +100,7 @@
               {
                 "textRuns": [
                   {
-                    "value": "A market's average can mix cheap and dear produce. The table splits it by variety and grade, so you can see the price for produce like yours.",
+                    "value": "A market's average can mix cheap and dear produce. The table splits it by variety and grade, so you can see the price for produce like yours. Reports counts price lines: one per variety and grade each day.",
                     "textStyle": {
                       "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
                       "fontSize": "13pt",

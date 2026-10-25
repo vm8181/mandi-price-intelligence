@@ -12,6 +12,10 @@ A day counts as COMPLETE only if both checks pass:
      empty answers).
   2. No row appears twice (pigeonhole: with the total matched, a missing row can only
      hide behind a duplicate).
+     Exception: the source itself sometimes holds identical rows (19 on 3 Nov 2025).
+     Then the whole day is asked for once more in a single request, and the day passes
+     only if that answer holds exactly the same rows, copies included. Duplicates the
+     source really has are kept as received; silver keeps one copy of each.
 """
 import gzip
 import json
@@ -34,9 +38,10 @@ STATES = ["Tamil Nadu", "Uttar Pradesh", "Madhya Pradesh", "Maharashtra", "Keral
           "Nagaland", "Chandigarh", "Pondicherry", "Arunachal Pradesh", "Mizoram"]
 
 # Other spellings that may appear in older years. Only asked for when the states above
-# don't add up, so they cost nothing on normal days.
+# don't add up, so they cost nothing on normal days. "Uttrakhand" (sic) carries 65 to 111
+# rows a day in Oct and Nov 2025, sometimes beside "Uttarakhand" on the same day.
 EXTRA_STATE_NAMES = ["Chhattisgarh", "Puducherry", "Jharkhand", "Sikkim", "Ladakh",
-                     "Delhi", "Orissa", "Jammu & Kashmir", "Andaman and Nicobar Islands",
+                     "Delhi", "Orissa", "Uttrakhand", "Jammu & Kashmir", "Andaman and Nicobar Islands",
                      "Dadra and Nagar Haveli", "Daman and Diu",
                      "Dadra and Nagar Haveli and Daman and Diu", "Lakshadweep"]
 
@@ -50,10 +55,11 @@ class DayResult:
     files: int = 0                  # state files written
     duplicate_rows: int = 0         # extra copies of identical rows (should be 0)
     retried_states: list = field(default_factory=list)   # states asked again after an empty answer
+    source_duplicates: bool = False # duplicates proven to be in the source (whole-day answer matches)
 
     @property
     def complete(self) -> bool:
-        return self.rows_saved == self.day_total and self.duplicate_rows == 0
+        return self.rows_saved == self.day_total and (self.duplicate_rows == 0 or self.source_duplicates)
 
     @property
     def problem(self) -> str:
@@ -61,7 +67,7 @@ class DayResult:
         issues = []
         if self.rows_saved != self.day_total:
             issues.append(f"states sum to {self.rows_saved:,}, day total {self.day_total:,}")
-        if self.duplicate_rows:
+        if self.duplicate_rows and not self.source_duplicates:
             issues.append(f"{self.duplicate_rows:,} duplicate rows")
         return "; ".join(issues)
 
@@ -175,7 +181,17 @@ def download_day(client: DataGovClient, day: date, commodity: str, folder: Path,
     # 5. Checks: totals, and duplicates (pigeonhole).
     all_records = [r for a in answers.values() for r in a.get("records", [])]
     result.rows_saved = len(all_records)
-    result.duplicate_rows = sum(n - 1 for n in Counter(map(canonical, all_records)).values() if n > 1)
+    copies = Counter(map(canonical, all_records))
+    result.duplicate_rows = sum(n - 1 for n in copies.values() if n > 1)
+
+    # 5b. Totals match but some rows appear twice: is that the source, or a missing row
+    #     hiding behind a copy? Ask for the whole day in one request (no pages, so nothing
+    #     can overlap) and require exactly the same rows, the same number of times.
+    if result.duplicate_rows and result.rows_saved == result.day_total:
+        whole = client.get({**base, "limit": max(limit, result.day_total + 1), "offset": 0},
+                           f"{label} whole day (duplicate check)").get("records", [])
+        result.source_duplicates = (len(whole) == result.day_total
+                                    and Counter(map(canonical, whole)) == copies)
 
     # 6. Save: replace whatever an earlier attempt left, then write each state as received.
     folder.mkdir(parents=True, exist_ok=True)

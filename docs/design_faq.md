@@ -31,6 +31,12 @@ for this time of year; "should I store or sell?" needs how prices usually move a
 point in the season; "is this a spike?" needs normal behaviour to compare against. Like a
 stock app: the price plus the chart behind it. Cost is small: about 23 bytes per row compressed.
 
+**Why does the history start in October 2025, not ten years back?**
+Storage was never the limit; the slow API is (about 52 seconds a day, with retries). One year
+plus a month answers every question the dashboard asks and gives a year-on-year comparison for
+October. Extending it is one setting; only the added days download, and only the added months
+are rebuilt ([decision 011](decisions.md)).
+
 **Why real government data instead of a Kaggle or generated dataset?**
 Real data has real problems: late uploads, inconsistent names, mixed units, an unreliable
 API. Solving those is the actual work of data engineering; a clean dataset hides it.

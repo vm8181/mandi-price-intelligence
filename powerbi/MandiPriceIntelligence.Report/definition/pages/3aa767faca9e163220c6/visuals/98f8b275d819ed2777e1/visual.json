@@ -4,10 +4,10 @@
   "position": {
     "x": 1532,
     "y": 128,
-    "z": 12000,
+    "z": 11000,
     "height": 904,
     "width": 348,
-    "tabOrder": 12000
+    "tabOrder": 11000
   },
   "visual": {
     "visualType": "textbox",
@@ -60,7 +60,7 @@
               {
                 "textRuns": [
                   {
-                    "value": "Markets at the top paid the most. Check Days reported: a price from 1 day rests on less than one from 7.",
+                    "value": "Markets at the top paid the most. Check Days reported: a price from 1 day rests on less than one from 7. Reports counts price lines: one per variety and grade each day.",
                     "textStyle": {
                       "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
                       "fontSize": "13pt",

@@ -11,7 +11,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path("data/raw/mandi_v2")   # version 2: downloaded state by state
-YEARS = 10                 # same window as the nightly run
+HISTORY_START = date(2025, 10, 1)   # same window as the nightly run ($HistoryStart in daily_run.ps1)
 LATE_WINDOW_DAYS = 30      # recent days stay open for late uploads (same as backfill_history.py)
 
 
@@ -52,10 +52,7 @@ def main() -> None:
         return
 
     yesterday = date.today() - timedelta(days=1)
-    try:
-        start = yesterday.replace(year=yesterday.year - YEARS) + timedelta(days=1)
-    except ValueError:
-        start = yesterday.replace(year=yesterday.year - YEARS, day=28) + timedelta(days=1)
+    start = HISTORY_START
     window = [start + timedelta(d) for d in range((yesterday - start).days + 1)]
 
     def folder(d):

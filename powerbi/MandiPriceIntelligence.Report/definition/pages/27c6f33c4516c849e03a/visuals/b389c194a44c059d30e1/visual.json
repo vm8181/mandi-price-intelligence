@@ -4,7 +4,7 @@
   "position": {
     "x": 1532,
     "y": 128,
-    "z": 12000,
+    "z": 11000,
     "height": 904,
     "width": 348,
     "tabOrder": 12000
@@ -140,7 +140,7 @@
               {
                 "textRuns": [
                   {
-                    "value": "Each point is one week. Solid green weeks are final. Dashed amber weeks are provisional: markets are still reporting, so they can move a little.",
+                    "value": "Each point is one week (Monday to Sunday), dated by its Monday. Solid green weeks are final. Dashed amber weeks are provisional: markets are still reporting, so they can move a little.",
                     "textStyle": {
                       "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
                       "fontSize": "13pt",

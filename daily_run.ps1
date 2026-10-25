@@ -2,8 +2,8 @@
   Mandi Price Intelligence: nightly run on this laptop.
 
   Steps (choose with -Step; the default, All, runs both in order):
-    Download  fills every missing day of the history window, re-pulls the last 30 days
-              (mandis upload late) and continues the backfill if it isn't finished.
+    Download  fills every missing day of the history window (from $HistoryStart below to
+              yesterday), re-pulls the last 30 days (mandis upload late), adds new days.
               Finished days are skipped in a fraction of a second.
     Upload    sends newly finished days, and new complete versions of recent days, to
               the Databricks volume and verifies them.
@@ -78,9 +78,12 @@ if ($Step -in "All", "Download") {
         Write-Log "STOPPED: DATAGOV_API_KEY is not set. Run setup_scheduled_task.ps1 to save it."
         exit 1
     }
-    # --max-hours 20: a run started at 21:00 stops by 17:00, so the next night's run starts on
-    # time and refreshes recent days first; the backfill carries on from where it stopped.
-    $download = Invoke-Step "Download" @("backfill_history.py", "--last-years", "10", "--all-commodities", "--max-hours", "20")
+    # History window: from $HistoryStart to yesterday (decision 011). Each night fills any missing
+    # day in the window, adds yesterday, and refreshes the last 30 days. To extend the history,
+    # set an earlier date here and in status.py; finished days are skipped, so only new ones download.
+    # --max-hours 20: a run started at 21:00 stops by 17:00, so the next night's run starts on time.
+    $HistoryStart = "01-10-2025"
+    $download = Invoke-Step "Download" @("backfill_history.py", "--start", $HistoryStart, "--all-commodities", "--max-hours", "20")
 }
 
 if ($Step -in "All", "Upload") {

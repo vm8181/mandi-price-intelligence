@@ -4,10 +4,10 @@
   "position": {
     "x": 40,
     "y": 344,
-    "z": 3000,
+    "z": 1000,
     "height": 388,
     "width": 1480,
-    "tabOrder": 3000
+    "tabOrder": 1000
   },
   "visual": {
     "visualType": "lineChart",
@@ -23,11 +23,11 @@
                       "Entity": "Date"
                     }
                   },
-                  "Property": "Week of Year"
+                  "Property": "Week"
                 }
               },
-              "queryRef": "Date.Week of Year",
-              "nativeQueryRef": "Week of Year",
+              "queryRef": "Date.Week",
+              "nativeQueryRef": "Week",
               "active": true
             }
           ]
@@ -42,11 +42,36 @@
                       "Entity": "Date"
                     }
                   },
-                  "Property": "Year"
+                  "Property": "Week Year"
                 }
               },
-              "queryRef": "Date.Year",
-              "nativeQueryRef": "Year"
+              "queryRef": "Date.Week Year",
+              "nativeQueryRef": "Week Year",
+              "displayName": "Year"
+            }
+          ]
+        },
+        "Tooltips": {
+          "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "Date"
+                        }
+                      },
+                      "Property": "Week Start"
+                    }
+                  },
+                  "Function": 3
+                }
+              },
+              "queryRef": "Min(Date.Week Start)",
+              "nativeQueryRef": "Week starting",
+              "displayName": "Week starting"
             }
           ]
         },
@@ -69,6 +94,28 @@
             }
           ]
         }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Aggregation": {
+                "Expression": {
+                  "Column": {
+                    "Expression": {
+                      "SourceRef": {
+                        "Entity": "Date"
+                      }
+                    },
+                    "Property": "Week Start"
+                  }
+                },
+                "Function": 3
+              }
+            },
+            "direction": "Ascending"
+          }
+        ]
       }
     },
     "objects": {
@@ -200,6 +247,41 @@
                       "Value": "'#374151'"
                     }
                   }
+                }
+              }
+            },
+            "concatenateLabels": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            },
+            "autoExpand": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "preferredCategoryWidth": {
+              "expr": {
+                "Literal": {
+                  "Value": "24D"
+                }
+              }
+            },
+            "initialScrollPosition": {
+              "expr": {
+                "Literal": {
+                  "Value": "'start'"
+                }
+              }
+            },
+            "maxMarginFactor": {
+              "expr": {
+                "Literal": {
+                  "Value": "20L"
                 }
               }
             }
@@ -393,7 +475,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'One line per year, All India median price, ₹ per quintal. Lines grow as older years are downloaded.'"
+                  "Value": "'One line per year, All India median price, ₹ per quintal. Weeks run Monday to Sunday; Wk 01 can start in late December. Data starts October 2025.'"
                 }
               }
             },
@@ -467,5 +549,61 @@
       ]
     },
     "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "e87b8cb98286c65ec12c",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Season Price"
+          }
+        },
+        "type": "Advanced",
+        "filter": {
+          "Version": 2,
+          "From": [
+            {
+              "Name": "_",
+              "Entity": "_Measures",
+              "Type": 0
+            }
+          ],
+          "Where": [
+            {
+              "Condition": {
+                "Not": {
+                  "Expression": {
+                    "Comparison": {
+                      "ComparisonKind": 0,
+                      "Left": {
+                        "Measure": {
+                          "Expression": {
+                            "SourceRef": {
+                              "Source": "_"
+                            }
+                          },
+                          "Property": "Season Price"
+                        }
+                      },
+                      "Right": {
+                        "Literal": {
+                          "Value": "null"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
   }
 }

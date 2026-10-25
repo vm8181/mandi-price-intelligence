@@ -4,7 +4,7 @@
   "position": {
     "x": 40,
     "y": 635,
-    "z": 7000,
+    "z": 8000,
     "height": 397,
     "width": 1480,
     "tabOrder": 7000
@@ -28,7 +28,7 @@
               },
               "queryRef": "Quality Log.Run At (IST)",
               "nativeQueryRef": "Run At (IST)",
-              "displayName": "Cleaning run (IST)"
+              "displayName": "Cleaning run (India time)"
             },
             {
               "field": {

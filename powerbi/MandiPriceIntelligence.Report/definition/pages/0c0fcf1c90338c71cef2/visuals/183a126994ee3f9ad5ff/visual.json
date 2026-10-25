@@ -7,7 +7,7 @@
     "z": 12000,
     "height": 904,
     "width": 348,
-    "tabOrder": 12000
+    "tabOrder": 11000
   },
   "visual": {
     "visualType": "textbox",
@@ -60,7 +60,7 @@
               {
                 "textRuns": [
                   {
-                    "value": "Green ticks mean the check passed. An amber warning says what to look at.",
+                    "value": "Green ticks mean the check passed; an amber warning says what to look at.",
                     "textStyle": {
                       "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
                       "fontSize": "13pt",
@@ -220,7 +220,7 @@
               {
                 "textRuns": [
                   {
-                    "value": "Laptop download every night (proved complete) → upload every 2 hours → Databricks bronze, silver and gold at 07:00 → this dashboard.",
+                    "value": "Nightly download (proved complete) → upload every 2 hours → Databricks at 07:00: bronze (raw copy), silver (cleaned), gold (report tables) → this dashboard.",
                     "textStyle": {
                       "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
                       "fontSize": "13pt",

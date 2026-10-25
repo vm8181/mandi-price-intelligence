@@ -7,7 +7,7 @@
     "z": 10000,
     "height": 904,
     "width": 348,
-    "tabOrder": 10000
+    "tabOrder": 9000
   },
   "visual": {
     "visualType": "textbox",
@@ -140,7 +140,7 @@
               {
                 "textRuns": [
                   {
-                    "value": "Rows are states, columns are weeks. Colour runs from light (cheaper) to dark orange (dearer) across the whole grid, so you can spot both dear states and rising weeks.",
+                    "value": "Rows are states, columns are weeks, each labelled by the Monday it starts on. Colour runs from light (cheaper) to dark orange (dearer) across the whole grid, so you can spot both dear states and rising weeks.",
                     "textStyle": {
                       "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
                       "fontSize": "13pt",

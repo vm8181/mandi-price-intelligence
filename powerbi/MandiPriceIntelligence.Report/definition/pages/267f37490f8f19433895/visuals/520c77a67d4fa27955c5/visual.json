@@ -21,149 +21,138 @@
                   {
                     "value": "What you can find out",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "18pt",
-                      "color": "#1F8A5B",
-                      "fontWeight": "bold"
+                      "color": "#1f8a5b"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Price pulse",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "How a crop's All India price is moving week by week, and which crops rose or fell most.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Cheapest states",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Which states pay the most and least, and how that changed over 12 weeks.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Market finder",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "The mandis paying the best price for a crop in your state, last 7 or 30 days.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Seasons",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "The same week in different years: is this price normal for the time of year?",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Data health",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "How fresh and complete the data is, and what the quality checks found.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               }
             ]
           }

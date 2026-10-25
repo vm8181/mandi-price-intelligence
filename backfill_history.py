@@ -232,6 +232,8 @@ def main() -> None:
             (folder(d, c) / "_REFRESHED").write_text(datetime.now().isoformat(), encoding="utf-8")
         else:
             status = "complete"
+            if r.source_duplicates:
+                status += f" ({r.duplicate_rows:,} duplicate rows are in the source itself, kept; silver keeps one copy)"
             (folder(d, c) / "_DONE").write_text(datetime.now().isoformat(), encoding="utf-8")
         write_manifest({"arrival_date": d.isoformat(), "commodity": c, "rows_expected": r.day_total,
                         "rows_saved": r.rows_saved, "files": r.files, "duplicate_rows": r.duplicate_rows,

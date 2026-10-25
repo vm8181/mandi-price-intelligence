@@ -4,6 +4,60 @@ Each entry records a choice, the options considered, and why. Newest first.
 
 ---
 
+## 012. A misspelt state, and duplicate rows that the source really has
+
+**Date:** 25 Oct 2026
+**Found by:** the completeness check (decision 005). 36 days, 1 Oct to 5 Nov 2025, would not
+add up: the states summed to about 1% less than the day's total, and 1 to 5 Nov also had
+duplicate rows. A diagnostic (`diagnose_incomplete_days.py`) asked for each day whole, in one
+request, and compared it state by state with the files.
+
+**What it showed:**
+- **"Uttrakhand"** (sic): 65 to 111 rows a day sent under this spelling, sometimes beside
+  "Uttarakhand" on the same day. No request asked for it, so those rows were missing.
+- **Identical rows in the source itself:** 3 Nov 2025 has 19 exact copies in the API's own
+  single-request answer. These are not caused by paging; they are in the data.
+
+**Decision:**
+- The downloader also asks for "Uttrakhand" (only on days that don't add up, so normal days
+  cost nothing), and silver maps it to Uttarakhand in `ref_state_alias`.
+- A day with duplicates passes only if the whole day, asked for again in one request, holds
+  **exactly the same rows the same number of times**. That proves the copies are the source's,
+  not a missing row hiding behind a copy. The copies are kept in bronze as received and silver
+  keeps one (it already removes exact copies).
+
+**Options considered:**
+- Accept a day once its total matches, ignoring duplicates: simpler, but loses the pigeonhole
+  proof from decision 005.
+- Leave these days incomplete: honest, but a month of history would never reach Databricks.
+
+**Trade-off:** the alias changes silver's rules fingerprint, so the next run rebuilds silver and
+gold in full once (decision 010 by design). Later runs are incremental again.
+
+---
+
+## 011. History starts on 1 October 2025, extendable with one setting
+
+**Date:** 25 Oct 2026
+**Supersedes the window in 003** (ten years); the storage format in 003 is unchanged.
+
+**Decision:** the nightly download covers a fixed window, from 1 October 2025 to yesterday
+(`$HistoryStart` in `daily_run.ps1`, `HISTORY_START` in `status.py`). Each night still adds
+yesterday, fills any missing day and refreshes the last 30 days; it no longer goes further back.
+
+**Why:**
+- **It answers the questions.** Every dashboard page has real data, and October can be compared
+  across two years, which is enough to show how the Seasons page works.
+- **More years cost a lot for little gain now.** The API takes about 52 seconds a day and often
+  returns empty answers that need retries; ten years would be about 47 more hours of downloading.
+- **Nothing is lost.** Extending the history is one setting: finished days are skipped, only the
+  added days download, and the incremental pipeline (decision 010) rebuilds only the added months.
+
+**Trade-off:** "is this price normal for the time of year?" can be judged for the months covered
+twice; each added year sharpens it.
+
+---
+
 ## 010. Silver and gold rebuild only the months that changed
 
 **Date:** 25 Oct 2026
@@ -212,7 +266,7 @@ while recent, marked finished at 7 days old, and never pulled after that.
 
 ---
 
-## 003. Keep 10 years of history, stored as gzip-compressed raw pages
+## 003. Keep 10 years of history, stored as gzip-compressed raw pages (window replaced by 011)
 
 **Date:** 22 Oct 2026
 **Decision:** Load every commodity from 22 Oct 2016 to yesterday, about 49 million

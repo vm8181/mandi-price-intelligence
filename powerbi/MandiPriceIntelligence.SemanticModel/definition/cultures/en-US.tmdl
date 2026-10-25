@@ -933,7 +933,7 @@ cultureInfo en-US
 			      "State": "Generated",
 			      "Terms": [
 			        {
-			          "Cleaning run (IST)": {
+			          "Cleaning run (India time)": {
 			            "State": "Suggested",
 			            "Source": {
 			              "Type": "External",

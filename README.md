@@ -4,13 +4,13 @@ An end-to-end data platform on **Databricks** that turns India's official daily 
 (wholesale market) prices into trustworthy answers for farmers, traders and anyone
 tracking food prices.
 
-It builds a multi-year history of daily prices from data.gov.in, proves every day is
+It builds a history of daily prices from data.gov.in (the start date is one setting), proves every day is
 complete, and builds a **bronze → silver → gold** lakehouse with quality rules,
 reconciliation at every step, and a daily automated job.
 
-> **Status:** extraction, bronze, silver, gold and the daily Databricks job are built and
-> verified on real data. Recent days are shown as provisional until final. The historical
-> backfill is downloading. Next: the Power BI dashboard.
+> **Status:** extraction, bronze, silver, gold, the daily Databricks job and the Power BI
+> dashboard are built and verified on real data. Recent days are shown as provisional until
+> final. Silver and gold rebuild only the months that change.
 
 ![Architecture](docs/images/architecture.png)
 
@@ -57,23 +57,23 @@ found, silently loses rows when paged.
 
 | Who | Question | Status |
 | --- | --- | --- |
-| Farmer or producer group | Which mandi near me paid best for my crop this week? | Gold data ready; dashboard next |
-| Trader or buyer | Is today's price high or low for this time of year? | Needs the historical backfill (downloading) |
-| Household or journalist | Which staples are rising unusually fast? | First weekly trend built (below) |
+| Farmer or producer group | Which mandi near me paid best for my crop this week? | Answered: Market finder, with variety and grade, and a drillthrough per market |
+| Trader or buyer | Is today's price high or low for this time of year? | Answered for the months covered twice; sharper with each added year |
+| Household or journalist | Which staples are rising unusually fast? | Answered: Price pulse, biggest movers |
 | Data team | Did today's load succeed, and is every day complete? | Built: checks, reconciliation, job alerts |
 
 ## Project status
 
 | Phase | What | Status |
 | --- | --- | --- |
-| Extraction | Multi-year history of daily prices, provably complete, nightly | ✅ Built · backfill running |
+| Extraction | History of daily prices from a fixed start date, provably complete, nightly | ✅ Built |
 | Upload | Final days and provisional versions of recent days to Databricks, every 2 hours, each verified | ✅ Built |
 | Bronze | Auto Loader into Delta, reconciled per file | ✅ Verified |
 | Silver | Types, quality rules, quarantine, de-duplication, flags | ✅ Verified |
 | Gold | Star schema, market-day fact, weekly and monthly prices | ✅ Verified |
 | Orchestration | Databricks job bronze → silver → gold, daily, alerts | ✅ Running daily at 07:00 IST |
 | Recent days | Shown as provisional until final, so gold reaches yesterday | ✅ Verified |
-| Reporting | Power BI report, public price tracker | Planned |
+| Reporting | Power BI report: 7 pages, drillthrough, self-writing summaries | ✅ Built · public tracker planned |
 | CI | Tests on every push (GitHub Actions) | Planned |
 
 ## The data
@@ -84,7 +84,7 @@ found, silently loses rows when paged.
 | Fields | State, District, Market, Commodity, Commodity code, Variety, Grade, Arrival date, Min, Max and Modal price (Rs per quintal) |
 | Grain | One price report per market, crop, variety, grade and day; some markets report several times a day |
 | Coverage | Every state; thousands of markets and hundreds of crops |
-| History | A rolling multi-year window up to yesterday, set by one command-line option |
+| History | From a fixed start date to yesterday, set by one option; extending it downloads only the added days ([decision 011](docs/decisions.md)) |
 | Storage | Raw answers kept unchanged, gzip-compressed (about 10x smaller than plain JSON) |
 
 ## How the pipeline works
@@ -234,7 +234,7 @@ reproduce failures met against the real API.
 
 ## Built for growing data
 
-The history keeps growing as the backfill runs. Each layer is built so that daily work depends
+Every day adds data, and the history can be extended at any time. Each layer is built so that daily work depends
 on **what changed**, not on how much history exists.
 
 | Layer | Technique | What it saves |
@@ -294,7 +294,7 @@ and written, and seconds, so the saving is visible in the data rather than claim
 | Platform | Databricks Free Edition: Unity Catalog, volumes, Auto Loader, Delta Lake, serverless compute, Jobs |
 | Transformation | Spark SQL, PySpark |
 | Code and tests | Git, GitHub, pytest, Databricks Git folders |
-| Reporting | Power BI *(next)* |
+| Reporting | Power BI Desktop, project format (TMDL model, PBIR report), DAX, Tabular Editor 2 |
 
 ### Concepts applied
 
@@ -333,6 +333,7 @@ Full reasoning and alternatives in [`docs/decisions.md`](docs/decisions.md).
 8. Gold as a star schema; national prices as medians of market prices
 9. Recent days shown as provisional; upload separate from download
 10. Silver and gold rebuild only the months that changed
+11. History from a fixed start date, extendable with one setting
 
 ## Screenshots
 
@@ -399,8 +400,9 @@ powershell -ExecutionPolicy Bypass -File .\setup_scheduled_task.ps1     # API ke
 - [x] Daily Databricks job with alerts
 - [x] Recent days as provisional data, so gold reaches yesterday
 - [x] Incremental silver and gold by month, proved equal to a full rebuild
-- [ ] Historical backfill complete
-- [ ] Power BI report and public price tracker
+- [x] History for the chosen window downloaded (extendable)
+- [x] Power BI report with drillthrough
+- [ ] Public price tracker
 - [ ] Price signals: best nearby mandi, unusual rises, prices below MSP
 - [ ] CI: tests on every push
 
