@@ -76,9 +76,18 @@ class Widgets:
         return self.values[name]
 
 
+class Notebook:
+    def __init__(self):
+        self.result = None
+
+    def exit(self, value):           # on Databricks this ends the notebook with this result
+        self.result = value
+
+
 class DBUtils:
     def __init__(self):
         self.widgets = Widgets()
+        self.notebook = Notebook()
 
 
 def run_notebook(name, mode="auto"):
@@ -92,6 +101,8 @@ def run_notebook(name, mode="auto"):
              {"spark": spark, "dbutils": dbutils, "display": lambda df: None, "__name__": "__main__"})
     finally:
         os.chdir(cwd)
+    assert dbutils.notebook.result and dbutils.notebook.result.startswith(("silver:", "gold:")), dbutils.notebook.result
+    print("Task result:", dbutils.notebook.result)
 
 
 # --------------------------------------------------------------------------- synthetic bronze

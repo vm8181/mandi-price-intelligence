@@ -137,9 +137,10 @@ def log_run(spark, C, layer, mode, reason, months, rows_read, rows_written, star
            {int(rows_read)}, {int(rows_written)}, {seconds},
            timestampadd(MILLISECOND, -{int(seconds * 1000)}, current_timestamp()), current_timestamp()
     """)
-    print(f"{layer}: {mode} run ({reason}). Months: {months_txt or ('all' if mode == 'full' else 'none')}. "
-          f"Rows read {int(rows_read):,}, written {int(rows_written):,}, in {seconds} s.")
-    return run_id
+    summary = (f"{layer}: {mode} run ({reason}). Months: {months_txt or ('all' if mode == 'full' else 'none')}. "
+               f"Rows read {int(rows_read):,}, written {int(rows_written):,}, in {seconds} s.")
+    print(summary)
+    return summary
 
 
 # --------------------------------------------------------------------------- change detection

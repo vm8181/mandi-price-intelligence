@@ -429,7 +429,7 @@ if run_mode != "skip":
     FROM {LEDGER}
     """)
 
-inc.log_run(spark, C, "silver", run_mode, reason, months, rows_read, rows_written, STARTED)
+SUMMARY = inc.log_run(spark, C, "silver", run_mode, reason, months, rows_read, rows_written, STARTED)
 # Remember what was processed, only after everything above succeeded.
 inc.set_state(spark, C, {"silver.bronze_final_version": v_final,
                          "silver.bronze_prov_version": v_prov,
@@ -474,3 +474,14 @@ if run_mode != "skip":
     ORDER BY modal_price DESC
     LIMIT 20
     """))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Task result
+# MAGIC The one-line summary becomes this task's result, shown on its page in the job run,
+# MAGIC so a run's mode, months, rows and time are visible without opening the output.
+
+# COMMAND ----------
+
+dbutils.notebook.exit(SUMMARY)

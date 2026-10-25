@@ -295,7 +295,7 @@ if run_mode != "skip":
 
 # COMMAND ----------
 
-inc.log_run(spark, C, "gold", run_mode, reason, months, rows_read, rows_written, STARTED)
+SUMMARY = inc.log_run(spark, C, "gold", run_mode, reason, months, rows_read, rows_written, STARTED)
 new_state = {"gold.logic": LOGIC}
 if pending:
     new_state["gold.silver_runs_until"] = pending[-1]["finished"]       # latest silver run followed
@@ -333,3 +333,13 @@ FROM {C}.ops.pipeline_runs
 ORDER BY finished_at DESC
 LIMIT 20
 """))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Task result
+# MAGIC The one-line summary becomes this task's result, shown on its page in the job run.
+
+# COMMAND ----------
+
+dbutils.notebook.exit(SUMMARY)
