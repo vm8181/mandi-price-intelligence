@@ -22,18 +22,19 @@ reconciliation at every step, and a daily automated job.
 3. [Project status](#project-status)
 4. [The data](#the-data)
 5. [How the pipeline works](#how-the-pipeline-works)
-6. [What the data revealed](#what-the-data-revealed)
-7. [Reliability: how every number is proved](#reliability-how-every-number-is-proved)
-8. [Built for growing data](#built-for-growing-data)
-9. [Engineering challenges solved](#engineering-challenges-solved)
-10. [Concepts, tech stack and operations](#concepts-tech-stack-and-operations)
-11. [Key design decisions](#key-design-decisions)
-12. [Screenshots](#screenshots)
-13. [Repository structure](#repository-structure)
-14. [How to run it](#how-to-run-it)
-15. [Roadmap](#roadmap)
-16. [Lessons learned](#lessons-learned)
-17. [Data source](#data-source)
+6. [The dashboard](#the-dashboard)
+7. [What the data revealed](#what-the-data-revealed)
+8. [Reliability: how every number is proved](#reliability-how-every-number-is-proved)
+9. [Built for growing data](#built-for-growing-data)
+10. [Engineering challenges solved](#engineering-challenges-solved)
+11. [Concepts, tech stack and operations](#concepts-tech-stack-and-operations)
+12. [Key design decisions](#key-design-decisions)
+13. [Screenshots](#screenshots)
+14. [Repository structure](#repository-structure)
+15. [How to run it](#how-to-run-it)
+16. [Roadmap](#roadmap)
+17. [Lessons learned](#lessons-learned)
+18. [Data source](#data-source)
 
 **Deeper reading:** [design decisions](docs/decisions.md) ·
 [data quality findings](docs/data_quality.md) · [incidents](docs/incidents/) ·
@@ -71,7 +72,8 @@ found, silently loses rows when paged.
 | Bronze | Auto Loader into Delta, reconciled per file | ✅ Verified |
 | Silver | Types, quality rules, quarantine, de-duplication, flags | ✅ Verified |
 | Gold | Star schema, market-day fact, weekly and monthly prices | ✅ Verified |
-| Orchestration | Databricks job bronze → silver → gold, daily, alerts | ✅ Running daily at 07:00 IST |
+| Incremental | Silver and gold rebuild only the months that changed | ✅ Proved by test, measured on real runs |
+| Orchestration | Databricks job bronze → silver → gold, daily, alerts | ✅ Ran daily · schedules now paused (dataset final) |
 | Recent days | Shown as provisional until final, so gold reaches yesterday | ✅ Verified |
 | Reporting | Power BI report: 7 pages, drillthrough, self-writing summaries | ✅ Built · public tracker planned |
 | CI | Tests on every push (GitHub Actions) | Planned |
@@ -171,9 +173,37 @@ A Databricks job runs **bronze → silver → gold** daily at 07:00 IST on serve
 compute, fetching the notebooks from this repository on every run. Each task runs only if
 the previous one succeeded, retries once after 5 minutes, and failures email an alert.
 
+## The dashboard
+
+Seven Power BI pages, each built around one question. Pick a crop on any page and every number,
+chart and sentence updates; summaries are written by DAX, so they always describe the current data.
+Built as a PBIP project in [`powerbi/`](powerbi): a star schema over the gold tables, with every measure documented.
+
+| Page | The question it answers |
+| --- | --- |
+| **Start here** | What is this, where does the data come from, and what do the words mean? |
+| **Price pulse** | How is a crop's All India price moving week by week, and which crops moved most? |
+| **Cheapest states** | Which states pay the most and least, and how has that changed over 12 weeks? |
+| **Market finder** | Which mandis pay the best price, in my state or across India, and how much evidence is behind it? |
+| **Market detail** (drillthrough) | What did one mandi pay by variety and grade, and does it beat its state consistently? |
+| **Seasons** | Is today's price normal for this time of year? |
+| **Data health** | How fresh and complete is the data, and what did the quality checks find? |
+
+| | |
+| --- | --- |
+| ![Start here](docs/images/dashboard_start_here.png) | ![Price pulse](docs/images/dashboard_price_pulse.png) |
+| ![Cheapest states](docs/images/dashboard_cheapest_states.png) | ![Market finder](docs/images/dashboard_market_finder.png) |
+| ![Market detail](docs/images/dashboard_market_detail.png) | ![Seasons](docs/images/dashboard_seasons.png) |
+| ![Data health](docs/images/dashboard_data_health.png) | |
+
+**Design choices that make it readable:** every page has a "How to read this page" panel; +/−
+signs show direction without implying good or bad (a rise helps sellers and costs buyers);
+recent, still-changing weeks are dashed and labelled provisional; weeks follow the ISO standard
+(Wk 01 can start in late December), stated on the page; and orange is used only for "check this".
+
 ## What the data revealed
 
-Findings from the first verification runs (April to September 2026 data).
+### What building it revealed about the source data
 
 **1. Paging an unstable API loses data silently.** In the first download, 94 of 228 days
 had real rows replaced by duplicates, and **every day's row count still matched**. Found
@@ -204,19 +234,49 @@ spaces went from 0% in May to 5.8% in August, and copies after cleaning jumped a
 times in September. Trimming in silver kept each market's history continuous; without it,
 "APMC Mumbai" would have become a new market mid-year. [Details](docs/data_quality.md)
 
-**5. First trend: All India wholesale prices, September to October 2026** (weekly median
-of about 800 to 1,100 markets; weeks from 25 September are provisional)
+### What the prices show
 
-| Crop | Week of 31 Aug | Peak | Week of 12 Oct | |
-| --- | --- | --- | --- | --- |
-| Tomato | Rs 2,400/quintal | Rs 3,000 (weeks of 28 Sep and 5 Oct) | Rs 2,600 | +25% in a month, then easing |
-| Onion | Rs 4,400 | Rs 4,800 (mid-September) | Rs 4,500 | Peaked, then down 6% |
-| Potato | Rs 1,200 | stable | Rs 1,140 | Flat |
+Findings as of October 2026, from the dashboard. Prices are All India wholesale medians,
+₹ per quintal (100 kg), so ₹4,500 a quintal is ₹45 a kg at the mandi; shops charge more.
 
-The latest week also shows late data at work: about 805 markets had reported onion,
-against about 950 in a normal week, because reports are still arriving. That is why recent
-weeks are labelled provisional. Prices are wholesale, not retail; the full history will
-show whether these moves are the usual seasonal pattern.
+**1. Onion tripled in a year.** The monthly price
+ran from ₹1,550 in October 2025 to ₹4,700 in September 2026. The low point was April to May
+(₹1,700 to ₹1,750), when the winter-sown crop is harvested and stored onion floods the mandis;
+the climb began in July, as stored stock ran down before the new crop arrived. The October
+2026 price (₹4,500) is 190% above October 2025, so this is more than the usual seasonal
+climb: the same month, a very different year.
+
+| Month | Oct 25 | Dec | Feb | Apr | Jun | Aug | Sep | Oct 26 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Onion | 1,550 | 1,900 | 2,000 | 1,750 | 1,950 | 3,200 | **4,700** | 4,500 |
+| Tomato | 2,200 | **3,500** | 1,750 | 1,750 | 2,750 | 2,050 | 2,500 | 2,800 |
+| Potato | 1,300 | 1,200 | 1,000 | 1,100 | 1,100 | 1,100 | 1,200 | 1,200 |
+| Wheat | 2,511 | 2,500 | 2,437 | 2,400 | 2,400 | 2,541 | 2,600 | 2,600 |
+
+**2. Perishables swing; staples barely move.** Ranking crops sold in 300+ markets by the gap
+between their dearest and cheapest month:
+
+| Most volatile | Dearest month ÷ cheapest | Steadiest | Dearest month ÷ cheapest |
+| --- | --- | --- | --- |
+| Lemon | 3.2× | Wheat | 1.13× |
+| Onion | 3.0× | Pumpkin | 1.14× |
+| Carrot | 2.6× | Bajra | 1.24× |
+| Garlic | 2.5× | Bottle gourd | 1.28× |
+| Ginger (green) | 2.5× | Potato | 1.46× |
+
+Tomato peaked twice (December and June) and fell to ₹1,500 in March: a 2.3× swing within the year.
+Potato stays within ±20%, likely because cold storage spreads the harvest across the year.
+
+**3. Where you sell matters as much as when.** In the 7 days to 24 October 2026, onion's
+middle price was ₹2,833 in Madhya Pradesh and ₹5,800 in Kerala, about twice as much, across
+21 states with at least 3 reporting markets. Between single markets the gap is wider still:
+830 markets reported onion in those 7 days, with a median of ₹4,280.
+
+**4. The headline "best price" needs its evidence.** In the same 7 days the highest onion price,
+₹10,000 at Kamakhyanagar APMC (Odisha), came from just 2 reports on 2 of 7 days. A market
+almost as high, ₹9,800, had reported on 5 days. A farmer acting on the first could travel for a
+price that was a one-off, so the dashboard's sentence now states the days behind every best
+price, and markets with fewer than 3 days are marked in the table.
 
 ## Reliability: how every number is proved
 
@@ -266,6 +326,18 @@ checks that an unchanged bronze skips, and that a rules change forces a full reb
 
 **Measured on every run.** `ops.pipeline_runs` records each run's mode, reason, months, rows read
 and written, and seconds, so the saving is visible in the data rather than claimed.
+
+**Measured on real data.** Two back-to-back runs on the same history:
+
+| Run | Why it ran | Months rebuilt | Rows read | Silver time | Gold time |
+| --- | --- | --- | --- | --- | --- |
+| Full rebuild | a cleaning rule changed (a new spelling of a state) | all | 100% | 100% | 100% |
+| Incremental | newly arrived days | 3 | **18%** | **53%** | **61%** |
+
+Rows read fall in line with the months touched. Time falls less, because every run has a fixed
+cost of about half a minute (reading the change feed, the reconciliation checks, compute start-up).
+As the history grows, a full rebuild keeps getting slower while a normal day's run stays about the
+same, so the gap keeps widening. Exact figures: [decision 010](docs/decisions.md).
 
 ## Engineering challenges solved
 
@@ -318,6 +390,10 @@ and written, and seconds, so the saving is visible in the data rather than claim
 | Any time | Laptop | `status.ps1`: progress, gaps, failed days, last run result |
 | 07:00 daily | Databricks job `mandi_daily` | Bronze → silver → gold with checks |
 | On failure | Email | Which task failed; repair from the failed task |
+
+**Schedules are paused** now that the dataset is final for this project. Everything above is
+built and was run daily; turning it back on is one switch each: `Enable-ScheduledTask` on the laptop,
+and `pause_status: UNPAUSED` in [`jobs/mandi_daily.yml`](jobs/mandi_daily.yml) (or Resume in the job's schedule).
 
 ## Key design decisions
 

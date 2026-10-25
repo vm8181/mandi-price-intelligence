@@ -21,176 +21,188 @@
                   {
                     "value": "The words used",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "18pt",
-                      "color": "#2563EB",
-                      "fontWeight": "bold"
+                      "color": "#2563eb"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Modal price",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "The price most of a crop sold at in a market that day. Markets also report a minimum and maximum.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "₹ per quintal",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "A quintal is 100 kg, so ₹4,500 a quintal is ₹45 a kg. These are wholesale prices; shops charge more.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "All India price (median)",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "The middle market price across all reporting markets. A median is used so one unusual market can't move it.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Week",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Monday to Sunday. Charts date a week by its Monday; Seasons numbers them Wk 01 to Wk 53 (international ISO numbering).",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Provisional",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Markets keep reporting for up to a month. The last 30 days may still change and are shown in amber or dashed.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Another unit",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "A few markets enter prices per bunch, piece or kg. They are left out of comparisons between markets.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "Signs and colours",
+                    "textStyle": {
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
+                      "fontSize": "14pt",
+                      "color": "#111827"
+                    }
+                  }
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "+ means up or higher, − down or lower. Neither is good or bad: a rise helps sellers and costs buyers. Orange marks something to check.",
+                    "textStyle": {
+                      "fontFamily": "Segoe UI",
+                      "fontSize": "13pt",
+                      "color": "#374151"
+                    }
+                  }
+                ]
               }
             ]
           }

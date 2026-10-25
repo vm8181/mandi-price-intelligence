@@ -95,6 +95,14 @@ skips, and that a rules change forces a full rebuild.
 (bronze rows used, silver, quarantined, copies removed). Each run checks its own months balance,
 and that the ledger's totals equal the tables' row counts, so untouched months stay accounted for.
 
+**Measured (25 Oct 2026, serverless):**
+- **Full rebuild** after the "Uttrakhand" state mapping was added (rules changed, decision 012):
+  silver read 7,070,715 rows in 161.2 s; gold read 7,060,323 rows in 67.6 s.
+- **The next run was incremental**: 37 changed days in 3 months. Silver read 1,292,819 rows (18%)
+  in 85.8 s; gold read 1,289,036 rows in 41.3 s.
+- Every run passed reconciliation. The fixed cost per run is about 30 to 40 s, so the time saved
+  grows with the length of the history.
+
 **Options considered:**
 - Keep full rebuilds: simplest, but cost grows with history.
 - Row-level `MERGE` on a report key: silver has no natural key that survives a provisional

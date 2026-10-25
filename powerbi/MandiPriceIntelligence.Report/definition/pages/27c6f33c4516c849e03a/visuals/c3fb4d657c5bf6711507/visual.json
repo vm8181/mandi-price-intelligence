@@ -2,11 +2,11 @@
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
   "name": "c3fb4d657c5bf6711507",
   "position": {
-    "x": 952,
-    "y": 501,
+    "x": 922.19020172910655,
+    "y": 501.67146974063394,
     "z": 7000,
-    "height": 531,
-    "width": 568,
+    "height": 531.18155619596541,
+    "width": 597.579250720461,
     "tabOrder": 8000
   },
   "visual": {
@@ -206,7 +206,7 @@
             "value": {
               "expr": {
                 "Literal": {
-                  "Value": "156.0D"
+                  "Value": "150.46685898926543D"
                 }
               }
             }
@@ -234,7 +234,7 @@
             "value": {
               "expr": {
                 "Literal": {
-                  "Value": "84.0D"
+                  "Value": "87.68876074512308D"
                 }
               }
             }
@@ -401,7 +401,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Sorted by the 4-week change. Not affected by the crop picker.'"
+                  "Value": "'Sorted by the 4-week change. Not affected by the crop picker. + means the price rose, − that it fell.'"
                 }
               }
             },
@@ -420,6 +420,13 @@
               "expr": {
                 "Literal": {
                   "Value": "12D"
+                }
+              }
+            },
+            "titleWrap": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
                 }
               }
             }

@@ -164,6 +164,36 @@
               }
             }
           }
+        },
+        {
+          "properties": {
+            "fontColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Measure": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "_Measures"
+                        }
+                      },
+                      "Property": "CF Days Reported"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "selector": {
+            "data": [
+              {
+                "dataViewWildcard": {
+                  "matchingOption": 1
+                }
+              }
+            ],
+            "metadata": "_Measures.Market Days Reported"
+          }
         }
       ],
       "columnHeaders": [
@@ -459,7 +489,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Average modal price over the period. Right-click a market > Drill through > Market detail for its prices by variety and grade.'"
+                  "Value": "'Average modal price over the period. Right-click a market > Drill through > Market detail for prices by variety and grade. Orange days reported = fewer than 3 days: the price rests on little evidence.'"
                 }
               }
             },
@@ -478,6 +508,13 @@
               "expr": {
                 "Literal": {
                   "Value": "12D"
+                }
+              }
+            },
+            "titleWrap": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
                 }
               }
             }

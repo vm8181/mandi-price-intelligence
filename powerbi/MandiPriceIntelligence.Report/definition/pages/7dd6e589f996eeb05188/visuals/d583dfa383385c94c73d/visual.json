@@ -60,7 +60,7 @@
               {
                 "textRuns": [
                   {
-                    "value": "From Market finder: right-click a market, then Drill through > Market detail. The crop, period and filters you picked come with you.",
+                    "value": "From Market finder: right-click a market, then Drill through > Market detail. The crop, period and filters you picked come with you. The Back button returns you.",
                     "textStyle": {
                       "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
                       "fontSize": "13pt",
@@ -206,7 +206,7 @@
               {
                 "textRuns": [
                   {
-                    "value": "Go back",
+                    "value": "vs state median",
                     "textStyle": {
                       "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
                       "fontSize": "14pt",
@@ -220,7 +220,7 @@
               {
                 "textRuns": [
                   {
-                    "value": "Use the Back button, or Ctrl+click it while editing in Desktop.",
+                    "value": "+ means this market paid more than its state's middle market, − that it paid less.",
                     "textStyle": {
                       "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
                       "fontSize": "13pt",

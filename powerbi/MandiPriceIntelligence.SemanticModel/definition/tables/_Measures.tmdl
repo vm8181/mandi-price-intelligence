@@ -410,19 +410,35 @@ table _Measures
 
 	/// A sentence that writes itself for the market finder.
 	measure 'Finder Summary' =
+			
 			VAR crop = SELECTEDVALUE ( Commodity[Crop] )
 			VAR place = SELECTEDVALUE ( 'State'[State], "India" )
 			VAR n = [Markets With Price]
 			VAR best = [Best Market Price]
 			VAR med = [Median Market Price]
+			VAR periodDays = [Period Days]
+			-- The same rule as Best Market Price: highest price among markets that reported on at least 2 days
+			VAR candidates =
+			    FILTER (
+			        ADDCOLUMNS (
+			            SUMMARIZE ( Market, Market[Market], Market[District], Market[State] ),
+			            "@p", [Market Price],
+			            "@d", [Market Days Reported]
+			        ),
+			        NOT ISBLANK ( [@p] ) && [@d] >= 2
+			    )
+			VAR bestRow = TOPN ( 1, candidates, [@p], DESC )
+			VAR bestName = MAXX ( bestRow, Market[Market] & " (" & Market[District] & ", " & Market[State] )
+			VAR bestDays = MAXX ( bestRow, [@d] )
 			RETURN
 			    SWITCH (
 			        TRUE (),
 			        ISBLANK ( crop ), "Pick one crop to find where it sells best.",
 			        ISBLANK ( n ) || n = 0, "No comparable " & crop & " prices in " & place & " in the " & [Period Label] & ".",
 			        n & IF ( n = 1, " market", " markets" ) & " in " & place & " reported " & crop & " prices in the " & [Period Label]
-			            & ". The best price was ₹" & FORMAT ( best, "#,0" ) & " a quintal at " & [Best Market Name]
-			            & ", " & FORMAT ( DIVIDE ( best - med, med ), "0%" ) & " above the median of ₹" & FORMAT ( med, "#,0" )
+			            & ". The best price was ₹" & FORMAT ( best, "#,0" ) & " a quintal at " & bestName
+			            & ", reported on " & bestDays & " of " & periodDays & " days), "
+			            & FORMAT ( DIVIDE ( best - med, med ), "0%" ) & " above the median of ₹" & FORMAT ( med, "#,0" )
 			            & ". Between the cheapest and dearest market, the gap was ₹" & FORMAT ( [Price Spread], "#,0" ) & " a quintal."
 			    )
 		displayFolder: Markets
@@ -828,6 +844,33 @@ table _Measures
 			    )
 		displayFolder: Market Detail
 		lineageTag: ee1b54e9-33ec-5fea-920b-16162601b80c
+
+	/// Orange when a market reported on fewer than 3 days in the period: its price rests on little evidence.
+	measure 'CF Days Reported' =
+			VAR d = [Market Days Reported]
+			RETURN IF ( NOT ISBLANK ( d ) && d < 3, "#EA580C" )
+		displayFolder: Conditional formatting
+		lineageTag: a25176d9-7f5a-4470-bf97-bebaf3070122
+
+	/// Amber cell when a run quarantined 1% or more of rows (normal is well under 0.1%).
+	measure 'CF Quarantine Rate' = IF ( MAX ( 'Quality Log'[Quarantine Rate] ) >= 0.01, "#FAD7A0" )
+		displayFolder: Conditional formatting
+		lineageTag: 9b462534-ef3a-4a9e-acdc-b4cfd8add5ec
+
+	/// Amber cell when copies removed reach 1% or more of rows (normal is under 0.5%).
+	measure 'CF Copies Rate' = IF ( MAX ( 'Quality Log'[Copies Rate] ) >= 0.01, "#FAD7A0" )
+		displayFolder: Conditional formatting
+		lineageTag: 9b34dba1-6dcc-40f6-a303-a8be4edbc71b
+
+	/// Amber cell when rows priced in another unit reach 1% or more (normal is about 0.3%).
+	measure 'CF Unit Suspect Rate' = IF ( MAX ( 'Quality Log'[Unit Suspect Rate] ) >= 0.01, "#FAD7A0" )
+		displayFolder: Conditional formatting
+		lineageTag: bdc9281d-a648-45c7-93d3-25fd19cd12df
+
+	/// Amber cell when one-off outliers reach 1% or more of rows (normal is under 0.1%).
+	measure 'CF Outlier Rate' = IF ( MAX ( 'Quality Log'[Outlier Rate] ) >= 0.01, "#FAD7A0" )
+		displayFolder: Conditional formatting
+		lineageTag: d2326c24-2958-4b00-a8ac-c0f46b37ce7d
 
 	column Dummy
 		dataType: int64

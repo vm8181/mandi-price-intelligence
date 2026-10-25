@@ -96,7 +96,7 @@
                           "min": {
                             "color": {
                               "Literal": {
-                                "Value": "'#EAF5EF'"
+                                "Value": "'#FFF7ED'"
                               }
                             }
                           },
@@ -373,7 +373,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Each cell is a state''s weekly median price. Darker means dearer. Read across a row for the trend.'"
+                  "Value": "'Each cell is a state''s weekly median price. Shades of orange: the palest cell is the cheapest in the grid, the darkest the dearest. Read across a row for the trend.'"
                 }
               }
             },
@@ -392,6 +392,13 @@
               "expr": {
                 "Literal": {
                   "Value": "12D"
+                }
+              }
+            },
+            "titleWrap": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
                 }
               }
             }

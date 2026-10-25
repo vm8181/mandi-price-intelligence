@@ -21,227 +21,230 @@
                   {
                     "value": "How to read this page",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "18pt",
-                      "color": "#12324A",
-                      "fontWeight": "bold"
+                      "color": "#12324a"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": " ",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "8pt",
                       "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Pick a crop",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Use the Crop box. The cards, sentence and chart all follow it.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": " ",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "8pt",
                       "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "The cards",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Price is the All India median for the latest week (or the one before, if the latest has under 3 days of prices). Changes compare it with 1 and 4 weeks earlier.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": " ",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "8pt",
                       "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "The line",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Each point is one week (Monday to Sunday), dated by its Monday. Solid green weeks are final. Dashed amber weeks are provisional: markets are still reporting, so they can move a little.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": " ",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "8pt",
                       "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "The movers table",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
-                    "value": "Every well-traded crop, ranked by its 4-week change. Crops sold in fewer than 50 markets are left out, because a few markets can make prices jump.",
+                    "value": "Crops sold in 50+ markets (fewer can make prices jump), ranked by 4-week change.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": " ",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "8pt",
                       "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Why a median?",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Half the markets paid more and half paid less. One market reporting in the wrong unit can't distort it, unlike an average.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
-                    "value": " ",
+                    "value": ""
+                  }
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "Reading + and −",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
-                      "fontSize": "8pt",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
+                      "fontSize": "14pt",
                       "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "+5% means the price rose 5%: good news for a farmer selling, bad for a buyer. −5% means it fell: worse for sellers, better for buyers.",
+                    "textStyle": {
+                      "fontFamily": "Segoe UI",
+                      "fontSize": "13pt",
+                      "color": "#374151"
+                    }
+                  }
+                ]
               }
             ]
           }

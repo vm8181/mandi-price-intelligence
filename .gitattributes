@@ -1,9 +1,8 @@
 # Line endings: store text files in Git with LF (Linux/Mac style), so the repository
 # is identical whatever system it's used on. Git converts automatically on checkout.
+# (No per-type eol=crlf rule: Databricks Git folders flag those as phantom changes,
+# and PowerShell runs LF scripts fine.)
 * text=auto eol=lf
-
-# PowerShell scripts keep Windows line endings (CRLF), the convention on Windows.
-*.ps1 text eol=crlf
 
 # Binary files: never convert.
 *.png binary

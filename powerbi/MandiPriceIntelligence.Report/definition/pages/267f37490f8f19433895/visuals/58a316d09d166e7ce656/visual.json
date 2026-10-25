@@ -21,122 +21,113 @@
                   {
                     "value": "Where the data comes from",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "18pt",
-                      "color": "#E0922F",
-                      "fontWeight": "bold"
+                      "color": "#e0922f"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Source",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Variety-wise Daily Market Prices (AGMARKNET), Department of Agriculture and Farmers Welfare, published on data.gov.in.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "How it gets here",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
-                    "value": "Every night each day is downloaded state by state and proved complete (the states add up to the day's total and no row appears twice). Databricks then cleans it: standard names, quality rules, and a reconciliation that accounts for every row.",
+                    "value": "Every night each day is downloaded state by state and proved complete: the states add up to the day’s total. Databricks then cleans it: standard names, quality rules, and a reconciliation that accounts for every row.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "What is left out",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Impossible prices (under ₹1) and broken rows are quarantined. One-off prices 10 times off a market's usual level are left out of averages but counted.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
                     "value": "Not trading advice",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+                      "fontWeight": "bold",
+                      "fontFamily": "Segoe UI Semibold",
                       "fontSize": "14pt",
-                      "color": "#111827",
-                      "fontWeight": "bold"
+                      "color": "#111827"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               },
               {
                 "textRuns": [
                   {
-                    "value": "Prices are as reported by mandis.",
+                    "value": "Prices are as reported by mandis. Check with the mandi before you travel or sell.",
                     "textStyle": {
-                      "fontFamily": "'Segoe UI', wf_segoe-ui_normal, helvetica, arial, sans-serif",
+                      "fontFamily": "Segoe UI",
                       "fontSize": "13pt",
                       "color": "#374151"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
               }
             ]
           }

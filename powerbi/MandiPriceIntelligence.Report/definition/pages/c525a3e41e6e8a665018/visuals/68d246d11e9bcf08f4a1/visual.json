@@ -99,18 +99,13 @@
         "sort": [
           {
             "field": {
-              "Aggregation": {
+              "Column": {
                 "Expression": {
-                  "Column": {
-                    "Expression": {
-                      "SourceRef": {
-                        "Entity": "Date"
-                      }
-                    },
-                    "Property": "Week Start"
+                  "SourceRef": {
+                    "Entity": "Date"
                   }
                 },
-                "Function": 3
+                "Property": "Week"
               }
             },
             "direction": "Ascending"
