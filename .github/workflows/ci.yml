@@ -1,0 +1,89 @@
+# Continuous integration: runs on every push and pull request to main.
+# Four independent checks run in parallel on GitHub's computers. None of them touches
+# Databricks or the real data, and none needs a secret, so the whole run is free on a public repo.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:            # "Run workflow" button on the Actions tab
+
+permissions:
+  contents: read                # read-only: CI can look at the code, never change it
+
+concurrency:                    # a newer push cancels the older run still going
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline-tests:
+    name: Pipeline tests (Python + local Spark)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-java@v4          # Spark runs on Java
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install packages
+        run: python -m pip install -r requirements.txt pyspark==4.0.1
+      - name: Unit tests (downloader, uploader, API client)
+        run: python -m pytest -q --ignore=tests/local_incremental_test.py
+      - name: Incremental run equals a full rebuild (real notebooks on local Spark)
+        run: python tests/local_incremental_test.py
+
+  powerbi-checks:
+    name: Power BI checks (structure, formatting, fields, layout)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Get Microsoft's published schemas
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/microsoft/json-schemas /tmp/json-schemas
+          git -C /tmp/json-schemas sparse-checkout set fabric/item/report/definition
+          curl -sSfL -o /tmp/reportThemeSchema.json \
+            "https://raw.githubusercontent.com/microsoft/powerbi-desktop-samples/main/Report%20Theme%20JSON%20Schema/reportThemeSchema-2.159.json"
+      - name: Install packages
+        run: python -m pip install jsonschema referencing
+      - name: Check the report files
+        run: python tools/check_powerbi.py --schemas /tmp/json-schemas --theme-schema /tmp/reportThemeSchema.json
+
+  bundle-check:
+    name: Databricks bundle check (offline)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: databricks/setup-cli@main       # official installer for the Databricks CLI
+      - name: Install packages
+        run: python -m pip install pyyaml jsonschema
+      - name: Check the job definition against the bundle schema
+        run: |
+          databricks bundle schema > /tmp/bundle_schema.json
+          python tools/check_bundle.py /tmp/bundle_schema.json
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar xz -C /tmp gitleaks
+      - name: Scan the repository (rules in .gitleaks.toml)
+        run: /tmp/gitleaks dir . --config .gitleaks.toml --redact --no-banner

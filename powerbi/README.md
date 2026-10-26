@@ -34,7 +34,7 @@ quality log (`mandi_dev.ops.silver_quality_log`):
 | `Quality Log` | one row per silver run | in full |
 | `Period` | last 7 or 30 days, for the market and state pages | calculated |
 
-81 measures, each with a description, are grouped in display folders on the
+86 measures, each with a description, are grouped in display folders on the
 `_Measures` table.
 
 **Why only 15 months of the daily table?** The market and state pages use the last 7 or 30
@@ -61,3 +61,15 @@ is not published. After setting your own, keep them out of commits with:
 ```powershell
 git update-index --skip-worktree powerbi/MandiPriceIntelligence.SemanticModel/definition/expressions.tmdl
 ```
+
+## Checked on every push
+
+Because PBIP stores the report as text, CI checks it without opening Power BI
+([`tools/check_powerbi.py`](../tools/check_powerbi.py)):
+
+- **Structure:** every page and visual file is valid against Microsoft's published schema.
+- **Formatting names:** every setting exists for its visual type (Desktop silently drops unknown ones).
+- **Fields:** every column and measure a visual uses exists in the model.
+- **Layout:** no visual overlaps another or runs off the page.
+
+Run it locally the same way CI does: see the workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).

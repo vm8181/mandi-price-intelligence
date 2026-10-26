@@ -1,0 +1,24 @@
+# Databricks Asset Bundle: the daily job as code.
+# The job itself is defined in jobs/mandi_daily.yml (bronze -> silver -> gold, notebooks fetched
+# from this GitHub repository on every run). This file names the bundle and the workspace target.
+#
+#   databricks bundle validate                    # checks the definition (CI does this on every push)
+#   databricks bundle deploy --var alert_email=you@example.com
+#
+# Deploying needs the Databricks CLI signed in on your own computer (databricks auth login).
+# No token or workspace address is stored here: the CLI reads them from your local profile.
+bundle:
+  name: mandi-price-intelligence
+
+include:
+  - jobs/*.yml
+
+variables:
+  alert_email:
+    description: Email address that receives failure alerts (kept out of the public repo)
+    default: alerts@example.com
+
+targets:
+  dev:
+    default: true
+    mode: production          # deploys the job under its own name, exactly as it runs today

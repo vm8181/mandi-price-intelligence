@@ -1,0 +1,26 @@
+# Secret scanning rules for this repository (used by gitleaks in CI on every push).
+# Starts from gitleaks' built-in rules (API keys, tokens, private keys) and adds the two
+# things this project must never publish: a real Databricks workspace address and a SQL
+# warehouse path. Placeholders such as "your-workspace.cloud.databricks.com" don't match.
+title = "mandi-price-intelligence"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "databricks-workspace-host"
+description = "A real Databricks workspace address"
+regex = '''(?i)\b(dbc-[0-9a-f]{8}-[0-9a-f]{4}\.cloud\.databricks\.com|adb-[0-9]{6,}\.[0-9]+\.azuredatabricks\.net)\b'''
+keywords = ["databricks.com", "azuredatabricks.net"]
+
+[[rules]]
+id = "databricks-sql-warehouse-path"
+description = "A real Databricks SQL warehouse path"
+regex = '''/sql/1\.0/warehouses/[0-9a-f]{16}'''
+keywords = ["/sql/1.0/warehouses/"]
+
+# data.gov.in publishes this sample key so anyone can try the API (it returns 10 rows only).
+# It is not a secret; the real key lives only in the laptop's user environment.
+[allowlist]
+description = "Public sample key published by data.gov.in"
+regexes = ['''579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b''']

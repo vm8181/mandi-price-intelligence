@@ -1,5 +1,7 @@
 # Mandi Price Intelligence
 
+[![CI](https://github.com/vm8181/mandi-price-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/vm8181/mandi-price-intelligence/actions/workflows/ci.yml)
+
 An end-to-end data platform on **Databricks** that turns India's official daily mandi
 (wholesale market) prices into trustworthy answers for farmers, traders and anyone
 tracking food prices.
@@ -10,7 +12,7 @@ reconciliation at every step, and a daily automated job.
 
 > **Status:** extraction, bronze, silver, gold, the daily Databricks job and the Power BI
 > dashboard are built and verified on real data. Recent days are shown as provisional until
-> final. Silver and gold rebuild only the months that change.
+> final. Silver and gold rebuild only the months that change. Every push is checked by CI.
 
 ![Architecture](docs/images/architecture.png)
 
@@ -26,15 +28,16 @@ reconciliation at every step, and a daily automated job.
 7. [What the data revealed](#what-the-data-revealed)
 8. [Reliability: how every number is proved](#reliability-how-every-number-is-proved)
 9. [Built for growing data](#built-for-growing-data)
-10. [Engineering challenges solved](#engineering-challenges-solved)
-11. [Concepts, tech stack and operations](#concepts-tech-stack-and-operations)
-12. [Key design decisions](#key-design-decisions)
-13. [Screenshots](#screenshots)
-14. [Repository structure](#repository-structure)
-15. [How to run it](#how-to-run-it)
-16. [Roadmap](#roadmap)
-17. [Lessons learned](#lessons-learned)
-18. [Data source](#data-source)
+10. [CI/CD: every change checked before it runs](#cicd-every-change-checked-before-it-runs)
+11. [Engineering challenges solved](#engineering-challenges-solved)
+12. [Concepts, tech stack and operations](#concepts-tech-stack-and-operations)
+13. [Key design decisions](#key-design-decisions)
+14. [Screenshots](#screenshots)
+15. [Repository structure](#repository-structure)
+16. [How to run it](#how-to-run-it)
+17. [Roadmap](#roadmap)
+18. [Lessons learned](#lessons-learned)
+19. [Data source](#data-source)
 
 **Deeper reading:** [design decisions](docs/decisions.md) ·
 [data quality findings](docs/data_quality.md) · [incidents](docs/incidents/) ·
@@ -76,7 +79,7 @@ found, silently loses rows when paged.
 | Orchestration | Databricks job bronze → silver → gold, daily, alerts | ✅ Ran daily · schedules now paused (dataset final) |
 | Recent days | Shown as provisional until final, so gold reaches yesterday | ✅ Verified |
 | Reporting | Power BI report: 7 pages, drillthrough, self-writing summaries | ✅ Built · public tracker planned |
-| CI | Tests on every push (GitHub Actions) | Planned |
+| CI/CD | Tests, Power BI checks, bundle check and secret scan on every push; job deployed as code | ✅ Built |
 
 ## The data
 
@@ -339,6 +342,42 @@ cost of about half a minute (reading the change feed, the reconciliation checks,
 As the history grows, a full rebuild keeps getting slower while a normal day's run stays about the
 same, so the gap keeps widening. Exact figures: [decision 010](docs/decisions.md).
 
+## CI/CD: every change checked before it runs
+
+Every push to GitHub starts [`.github/workflows/ci.yml`](.github/workflows/ci.yml): four checks
+run in parallel on GitHub's computers. None touches Databricks or the real data and none needs
+a secret, so CI is free and safe on a public repository. A failure marks the commit ❌ and emails
+the author.
+
+| Check | What it proves | What it would have caught |
+| --- | --- | --- |
+| **Pipeline tests** | Downloader, uploader and API rules (unit tests), then the real silver and gold notebooks on local Spark: an incremental run equals a full rebuild, a no-change run skips, a rule change rebuilds | A rule edit that makes incremental and full results drift apart |
+| **Power BI checks** ([`tools/check_powerbi.py`](tools/check_powerbi.py)) | Report files match Microsoft's schemas; every formatting setting exists for its visual; every column and measure a visual uses exists in the model; no visual overlaps or runs off the page | A setting Desktop silently drops (a slicer `fontSize` that should be `textSize`), or a card still bound to a deleted measure |
+| **Bundle check** ([`tools/check_bundle.py`](tools/check_bundle.py)) | The job definition matches the Databricks bundle schema; every notebook exists; tasks run bronze → silver → gold; code comes from `main` | A misspelt job setting, or a task pointing at a renamed notebook |
+| **Secret scan** ([gitleaks](https://github.com/gitleaks/gitleaks), [`.gitleaks.toml`](.gitleaks.toml)) | No API key, token, workspace address or SQL warehouse path in the code | The workspace address in the Power BI connection file being committed by mistake |
+
+**CD: the job as code.** [`databricks.yml`](databricks.yml) makes the daily job a
+**Databricks Asset Bundle**: `databricks bundle deploy` recreates it exactly from the repository,
+instead of clicks in the UI. Deployment runs from the owner's computer, where the Databricks
+login lives, so no token is ever stored in GitHub ([decision 013](docs/decisions.md)).
+
+**Power BI and CI/CD.** The report is saved as a PBIP project: plain-text files (JSON for pages and
+visuals, TMDL for the model), so every change shows up as a readable diff in Git and can be checked
+automatically. Publishing to the Power BI service stays manual here, because automated publishing
+needs a Fabric or Premium workspace and a service principal; the checks above make sure that what
+gets published is valid.
+
+**Run the same checks locally:**
+```powershell
+python -m pytest -q --ignore=tests/local_incremental_test.py
+python tests/local_incremental_test.py          # needs Java 17 and PySpark 4
+```
+
+**In a company, the next steps would be:** branch protection (no direct pushes to `main`, CI must
+pass), pull-request reviews, dev → test → prod workspaces with the bundle deployed to each, an
+integration test on a Databricks test workspace (which would also catch serverless-only issues
+that local Spark can't), and automated Power BI deployment pipelines.
+
 ## Engineering challenges solved
 
 | Challenge | What happened | Fix | Write-up |
@@ -435,8 +474,13 @@ setup_databricks_token.ps1 one-time: save and test the Databricks token
 status.ps1 / status.py     progress, gaps, failures, last run
 notebooks/                 Databricks: 10 bronze, 20 silver, 30 gold; incremental.py (shared helpers)
 jobs/                      Databricks job definition (YAML) and notes
-tests/                     pytest: 35 tests; local_incremental_test.py (Spark: incremental = full rebuild)
-tools/                     diagnostics: compare downloads, test User-Agent, pull a sample
+databricks.yml             Asset Bundle: deploys the job from this repository
+powerbi/                   Power BI project (PBIP): report pages, visuals and model as text files
+tests/                     pytest: 38 tests; local_incremental_test.py (Spark: incremental = full rebuild)
+tools/                     CI checks (Power BI, bundle) and diagnostics
+.github/workflows/ci.yml   CI: tests, Power BI checks, bundle check, secret scan on every push
+.gitleaks.toml             secret-scan rules
+diagnose_incomplete_days.py  finds state names a day's download missed
 docs/
   decisions.md             design decisions and alternatives
   data_quality.md          profiling results and quality rules
@@ -480,7 +524,7 @@ powershell -ExecutionPolicy Bypass -File .\setup_scheduled_task.ps1     # API ke
 - [x] Power BI report with drillthrough
 - [ ] Public price tracker
 - [ ] Price signals: best nearby mandi, unusual rises, prices below MSP
-- [ ] CI: tests on every push
+- [x] CI/CD: tests, Power BI checks, bundle check and secret scan on every push; job as an Asset Bundle
 
 ## Lessons learned
 

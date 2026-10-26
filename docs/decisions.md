@@ -4,6 +4,42 @@ Each entry records a choice, the options considered, and why. Newest first.
 
 ---
 
+## 013. CI on every push; deploy the job as a bundle from the owner's computer
+
+**Date:** 26 Oct 2026
+**Decision:** GitHub Actions runs four checks on every push and pull request (pipeline tests on
+local Spark, Power BI file checks, an offline bundle check, a secret scan). The daily job is a
+Databricks Asset Bundle (`databricks.yml`), deployed with `databricks bundle deploy` from the
+owner's computer, not from GitHub.
+
+**Why:**
+- **Catch broken code before it touches data.** The Databricks job only finds a problem when it runs
+  on real data the next morning. CI finds it minutes after the push, on sample data.
+- **Free and safe.** Public repositories run GitHub's standard runners free. No check needs Databricks
+  or a secret, so no compute is spent and nothing sensitive is stored in GitHub.
+- **The job as code.** A bundle recreates the job exactly from the repository; changes are reviewed
+  as diffs instead of clicks in the UI.
+
+**Options considered:**
+- `databricks bundle validate` in CI: needs a signed-in workspace, so a token in GitHub. Replaced by
+  validating against the official bundle schema from the CLI (`databricks bundle schema`), plus
+  checks that notebooks exist and tasks run in order.
+- Automatic deploy from GitHub: possible (token as an encrypted secret), but this project's rule is no
+  Databricks credentials in GitHub. In a company, a service principal with its own scoped token would
+  deploy to dev, test and prod.
+- Integration tests on a Databricks test workspace: would also catch serverless-only issues (the
+  `mandi.local` config error of 25 Oct passed local Spark), but cost compute on every push.
+
+**Power BI:** the report is a PBIP project (text files), so CI checks structure against Microsoft's
+schemas, formatting names against the theme schema, every field a visual uses against the model,
+and the layout. Publishing stays manual: automated publishing needs a Fabric or Premium workspace and
+a service principal.
+
+**Trade-off:** local Spark is not Databricks serverless, so CI proves the logic, not the platform.
+The Databricks job's own checks (reconciliation, quality rules) still guard each real run.
+
+---
+
 ## 012. A misspelt state, and duplicate rows that the source really has
 
 **Date:** 25 Oct 2026

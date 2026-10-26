@@ -18,15 +18,28 @@ class FakeClient:
     """Answers like the API: a day total, and one answer per State filter.
     `empty_first` lists states that answer 'ok' with no rows the first time."""
 
-    def __init__(self, states: dict, empty_first=(), duplicate_in=None, day_total=None):
+    def __init__(self, states: dict, empty_first=(), duplicate_in=None, day_total=None,
+                 source_duplicate_in=None):
         self.states = states
         self.empty_first = set(empty_first)
-        self.duplicate_in = duplicate_in
+        self.duplicate_in = duplicate_in                  # a fetch problem: a row replaced by a copy
+        self.source_duplicate_in = source_duplicate_in    # the source itself holds one row twice
         self.day_total = day_total if day_total is not None else sum(states.values())
         self.asked = []
 
+    def _rows(self, state, limit):
+        n = self.states.get(state, 0)
+        rows = [{"State": state, "Market": f"M{i}", "Modal_Price": 1000 + i} for i in range(min(n, limit))]
+        if state == self.source_duplicate_in and rows:
+            rows[-1] = dict(rows[0])                      # in the source: every answer has it
+        return rows
+
     def get(self, params, label):
         state = params.get("filters[State]")
+        if state is None and params["limit"] > 1:         # the whole day in one request
+            self.asked.append("WHOLE DAY")
+            rows = [r for s in self.states for r in self._rows(s, params["limit"])]
+            return {"status": "ok", "total": self.day_total, "records": rows}
         self.asked.append(state or "DAY")
         if state is None:
             return {"status": "ok", "total": self.day_total, "records": []}
@@ -34,7 +47,7 @@ class FakeClient:
             self.empty_first.discard(state)
             return {"status": "ok", "total": 0, "records": []}     # the Tamil Nadu hiccup
         n = self.states.get(state, 0)
-        records = [{"State": state, "Market": f"M{i}", "Modal_Price": 1000 + i} for i in range(min(n, params["limit"]))]
+        records = self._rows(state, params["limit"])
         if state == self.duplicate_in and records:
             records[-1] = dict(records[0])                           # one row twice, another missing
         return {"status": "ok", "total": n, "records": records}
@@ -145,3 +158,27 @@ def test_day_with_no_rows(tmp_path):
     c = FakeClient({}, day_total=0)                      # e.g. a national holiday
     r = download_day(c, DAY, "ALL", tmp_path)
     assert r.complete and r.rows_saved == 0 and c.asked == ["DAY"]
+
+
+def test_misspelt_state_is_found(tmp_path):
+    """Oct-Nov 2025: some rows come under "Uttrakhand" (sic), beside "Uttarakhand"."""
+    c = FakeClient({"Tamil Nadu": 100, "Uttarakhand": 20, "Uttrakhand": 9})
+    r = download_day(c, DAY, "ALL", tmp_path)
+    assert r.complete and (tmp_path / "state_Uttrakhand.json.gz").exists()
+
+
+def test_duplicates_in_the_source_are_proven_and_kept(tmp_path):
+    """3 Nov 2025: the source itself holds identical rows. The whole day, asked for once,
+    has exactly the same rows the same number of times, so the day is complete."""
+    c = FakeClient({"Tamil Nadu": 100, "Goa": 5}, source_duplicate_in="Tamil Nadu")
+    r = download_day(c, DAY, "ALL", tmp_path)
+    assert r.duplicate_rows == 1 and r.source_duplicates
+    assert r.complete and r.problem == ""
+    assert c.asked.count("WHOLE DAY") == 1
+
+
+def test_fetch_duplicate_hiding_a_missing_row_is_still_caught(tmp_path):
+    """The whole-day check must not excuse a copy that replaced a real row."""
+    c = FakeClient({"Tamil Nadu": 100}, duplicate_in="Tamil Nadu")
+    r = download_day(c, DAY, "ALL", tmp_path)
+    assert not r.source_duplicates and not r.complete
