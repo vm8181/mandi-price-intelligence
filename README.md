@@ -39,7 +39,7 @@ reconciliation at every step, and a daily automated job.
 18. [Lessons learned](#lessons-learned)
 19. [Data source](#data-source)
 
-**Deeper reading:** [design decisions](docs/decisions.md) ·
+**Deeper reading:** [the complete guide, in plain words](docs/project_guide.md) · [design decisions](docs/decisions.md) ·
 [data quality findings](docs/data_quality.md) · [incidents](docs/incidents/) ·
 [design FAQ: every why, why not, when](docs/design_faq.md) · [daily job](jobs/README.md)
 
