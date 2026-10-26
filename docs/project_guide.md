@@ -121,7 +121,7 @@ A thirteenth case came from CI itself: on its first run the secret scan flagged 
 
 The design answers each common data problem with a specific mechanism, so nothing depends on someone noticing.
 
-### Data problems
+### What the pipeline handles when data is messy
 
 | Scenario | What the system does | Mechanism |
 | --- | --- | --- |
@@ -136,7 +136,7 @@ The design answers each common data problem with a specific mechanism, so nothin
 | The API answers "ok" with no rows | Empty states are asked again, biggest first | Retry of empty answers |
 | The source changes its format mid-year | Profiling month by month shows the change; trimming keeps history continuous | Data quality monitoring |
 
-### Architecture problems
+### What the design handles when things go wrong
 
 | Scenario | What the system does | Mechanism |
 | --- | --- | --- |
