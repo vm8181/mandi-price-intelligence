@@ -20,18 +20,28 @@ import json
 import sys
 from pathlib import Path
 
+import regex
 import yaml
-from jsonschema import Draft7Validator, Draft202012Validator
-from jsonschema.exceptions import best_match
+from jsonschema import Draft7Validator, Draft202012Validator, validators
+from jsonschema.exceptions import ValidationError, best_match
 
 ROOT = Path(__file__).resolve().parent.parent
 REPO_URL = "https://github.com/vm8181/mandi-price-intelligence"
 problems = []
 
 
+def go_pattern(validator, pattern, instance, schema):
+    """The bundle schema checks ${var.x}-style references with regular expressions written for Go
+    (for example \\p{L}, any letter), which Python's re module can't compile. The `regex` package
+    understands them, so patterns are checked with it instead."""
+    if validator.is_type(instance, "string") and not regex.search(pattern, instance):
+        yield ValidationError(f"{instance!r} does not match {pattern!r}")
+
+
 def main():
     schema = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-    validator = (Draft202012Validator if "2020" in str(schema.get("$schema", "")) else Draft7Validator)(schema)
+    base = Draft202012Validator if "2020" in str(schema.get("$schema", "")) else Draft7Validator
+    validator = validators.extend(base, {"pattern": go_pattern})(schema)
 
     root_doc = yaml.safe_load((ROOT / "databricks.yml").read_text(encoding="utf-8"))
     files = [ROOT / "databricks.yml"]

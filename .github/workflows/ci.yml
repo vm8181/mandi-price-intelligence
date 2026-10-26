@@ -70,7 +70,7 @@ jobs:
           python-version: "3.12"
       - uses: databricks/setup-cli@main       # official installer for the Databricks CLI
       - name: Install packages
-        run: python -m pip install pyyaml jsonschema
+        run: python -m pip install pyyaml jsonschema regex
       - name: Check the job definition against the bundle schema
         run: |
           databricks bundle schema > /tmp/bundle_schema.json
@@ -86,4 +86,4 @@ jobs:
         run: |
           curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar xz -C /tmp gitleaks
       - name: Scan the repository (rules in .gitleaks.toml)
-        run: /tmp/gitleaks dir . --config .gitleaks.toml --redact --no-banner
+        run: /tmp/gitleaks dir . --config .gitleaks.toml --redact --no-banner --verbose   # verbose: names file and line, secret hidden

@@ -8,8 +8,20 @@
   characters, checks the token really is a Databricks token, saves it, and tests it.
 #>
 
-$WorkspaceUrl = "https://dbc-4ffdcd96-75b3.cloud.databricks.com"   # base address only, no /browse or ?o=
-$ConfigFile   = Join-Path $HOME ".databrickscfg"                   # where the CLI and SDK read it from
+param([string]$WorkspaceUrl = $env:DATABRICKS_HOST)   # e.g. https://dbc-xxxxxxxx-xxxx.cloud.databricks.com
+
+$ConfigFile = Join-Path $HOME ".databrickscfg"          # where the CLI and SDK read it from
+
+# The workspace address stays out of this public repository: take it from the -WorkspaceUrl
+# argument, the DATABRICKS_HOST variable, the existing CLI config, or ask once.
+if (-not $WorkspaceUrl -and (Test-Path $ConfigFile)) {
+    $line = Select-String -Path $ConfigFile -Pattern '^\s*host\s*=\s*(\S+)' | Select-Object -First 1
+    if ($line) { $WorkspaceUrl = $line.Matches[0].Groups[1].Value }
+}
+if (-not $WorkspaceUrl) {
+    $WorkspaceUrl = Read-Host "Databricks workspace URL (base address only, e.g. https://dbc-xxxxxxxx-xxxx.cloud.databricks.com)"
+}
+$WorkspaceUrl = ($WorkspaceUrl.Trim() -replace '/+$', '')
 
 # Hidden prompt: the token isn't shown on screen or saved in PowerShell's history.
 $secure = Read-Host "Paste your Databricks token (starts with dapi) and press Enter" -AsSecureString

@@ -1,12 +1,12 @@
 /// Databricks SQL warehouse server hostname (SQL Warehouses > your warehouse > Connection details).
 /// The repository holds a placeholder; set your own value in Power BI Desktop (Transform data > Edit parameters).
-expression DatabricksHost = "dbc-4ffdcd96-75b3.cloud.databricks.com" meta [IsParameterQuery = true, IsParameterQueryRequired = true, Type = type text]
+expression DatabricksHost = "your-workspace.cloud.databricks.com" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
 	lineageTag: aba0a75b-2189-5a84-9dd1-f2ed7da55fc0
 
 	annotation PBI_ResultType = Text
 
 /// Databricks SQL warehouse HTTP path (Connection details), e.g. /sql/1.0/warehouses/abc123.
-expression DatabricksHttpPath = "/sql/1.0/warehouses/478c52c7607df3a1" meta [IsParameterQuery = true, IsParameterQueryRequired = true, Type = type text]
+expression DatabricksHttpPath = "/sql/1.0/warehouses/your-warehouse-id" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
 	lineageTag: 5868011c-0c28-5010-ad3b-b180064d106f
 
 	annotation PBI_ResultType = Text
@@ -36,4 +36,3 @@ expression MandiTable =
 	lineageTag: 4b746acb-0d4c-5611-9969-ef8770fefcc6
 
 	annotation PBI_ResultType = Function
-
