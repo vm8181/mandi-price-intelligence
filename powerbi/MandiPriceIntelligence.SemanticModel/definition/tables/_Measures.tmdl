@@ -872,6 +872,65 @@ table _Measures
 		displayFolder: Conditional formatting
 		lineageTag: d2326c24-2958-4b00-a8ac-c0f46b37ce7d
 
+	/// Price label for the Seasons chart. Shown only at each year's first, lowest, highest and latest week, so the chart stays readable.
+	measure 'Season Label' =
+			VAR p = [Season Price]
+			VAR wk = SELECTEDVALUE ( 'Date'[Week of Year] )
+			VAR weeks =
+			    FILTER (
+			        ADDCOLUMNS ( ALLSELECTED ( 'Date'[Week of Year] ), "@p", [Season Price] ),
+			        NOT ISBLANK ( [@p] )
+			    )
+			VAR isKey =
+			    wk = MINX ( weeks, 'Date'[Week of Year] )
+			        || wk = MAXX ( weeks, 'Date'[Week of Year] )
+			        || p = MAXX ( weeks, [@p] )
+			        || p = MINX ( weeks, [@p] )
+			RETURN
+			    IF ( NOT ISBLANK ( p ) && isKey, FORMAT ( p, "₹#,0" ) )
+		displayFolder: Seasons
+		lineageTag: 93e69291-2c59-4991-bb8b-af3908c32cf4
+
+	/// Second line under the Seasons price label: Start, Low, Peak, or Latest with the change against the same week a year earlier.
+	measure 'Season Label Note' =
+			VAR p = [Season Price]
+			VAR wk = SELECTEDVALUE ( 'Date'[Week of Year] )
+			VAR yr = SELECTEDVALUE ( 'Date'[Week Year] )
+			VAR weeks =
+			    FILTER (
+			        ADDCOLUMNS ( ALLSELECTED ( 'Date'[Week of Year] ), "@p", [Season Price] ),
+			        NOT ISBLANK ( [@p] )
+			    )
+			VAR firstWk = MINX ( weeks, 'Date'[Week of Year] )
+			VAR lastWk = MAXX ( weeks, 'Date'[Week of Year] )
+			VAR hi = MAXX ( weeks, [@p] )
+			VAR lo = MINX ( weeks, [@p] )
+			// the newest year that has prices, among the years in the chart
+			VAR newestYear =
+			    MAXX (
+			        FILTER (
+			            ADDCOLUMNS ( ALLSELECTED ( 'Date'[Week Year] ), "@q", CALCULATE ( [Season Price], ALLSELECTED ( 'Date'[Week of Year] ) ) ),
+			            NOT ISBLANK ( [@q] )
+			        ),
+			        'Date'[Week Year]
+			    )
+			VAR prev = CALCULATE ( [Season Price], REMOVEFILTERS ( 'Date' ), 'Date'[Week Year] = yr - 1, 'Date'[Week of Year] = wk )
+			VAR vsPrev = IF ( NOT ISBLANK ( prev ), " · " & FORMAT ( DIVIDE ( p - prev, prev ), "+0%;-0%;0%" ) & " vs " & ( yr - 1 ) )
+			RETURN
+			    IF (
+			        NOT ISBLANK ( p ),
+			        SWITCH (
+			            TRUE (),
+			            wk = lastWk && yr = newestYear, "Latest" & vsPrev,
+			            p = hi, "Peak · Wk " & wk,
+			            p = lo, "Low · Wk " & wk,
+			            wk = lastWk, "Wk " & wk,
+			            wk = firstWk, "Start · Wk " & wk
+			        )
+			    )
+		displayFolder: Seasons
+		lineageTag: c62dee86-a118-4464-baf9-0df15f1835a8
+
 	column Dummy
 		dataType: int64
 		isHidden
